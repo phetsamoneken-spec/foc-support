@@ -2,7 +2,7 @@
 
 ## Source inspection gate
 
-The requested `MKT TEAM B(2).xlsx` and preliminary SQL review file are **not present**. No workbook counts or source-specific mappings have been verified. Attach the workbook before implementing an import. This document is a procedure, not a completed data-quality report.
+The requested `MKT TEAM B(2).xlsx` was located and structurally audited during the 2026-11-02 follow-up: 578 rows / 578 unique customer codes, complete required fields and valid team/date/quantity checks. See `docs/supabase-workbook-audit.md`. There is no monetary budget/price column. Current GAS/Sheets budget/transaction reconciliation and the preliminary SQL review remain unverified. This is a migration procedure, not approval to import.
 
 For each workbook sheet record: name, used range, exact header row, blank/footer/merged rows, formula vs cached value, workbook 1900/1904 date system, field types, unique customer codes, duplicate codes, distinct team labels, missing values and rejected row numbers. Expected columns (must verify): MDE, Customer Code, Customer Name, Condition Quantity, Condition UOM, Condition Product Code Description, Commencing On, Expiring On. Do not log names/phone/address/full rows in CI or PRs. Publish aggregate counts only.
 

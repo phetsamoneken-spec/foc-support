@@ -14,16 +14,18 @@
 
 ## ຜົນກວດ
 
-Lint ຜ່ານ; GAS tests 31 ຂໍ້ ແລະ TS test files 15 ໄຟລ໌ຜ່ານ; ກວດວັນທີສອງ timezone ຜ່ານ; build ຜ່ານ (ມີ chunk-size warning). SQL ຜ່ານ 136 assertions ໃນ PGlite ພ້ອມ schema replay ແລະ rollback guard. Auth tables/JWT functions ໃນ harness ເປັນ stub ຈຳລອງ.
+Lint ຜ່ານ; GAS tests 31 ຂໍ້ ແລະ TS test files 15 ໄຟລ໌ຜ່ານ; ກວດວັນທີສອງ timezone ຜ່ານ; build ຜ່ານ (ມີ chunk-size warning). SQL ຜ່ານ 163 assertions (136 regression + 27 workflows) ໃນ PGlite ພ້ອມ schema replay ແລະ rollback guard. Auth tables/JWT functions ໃນ harness ເປັນ stub ຈຳລອງ.
 
-**NOT RUN:** Supabase Auth/PostgREST ຈິງ, hosted advisors, concurrent connections, workbook ແລະ financial reconciliation ຂໍ້ມູນຈິງ. ບໍ່ໄດ້ທົດສອບ login ໃນເວັບຈິງ ຫຼືອ້າງວ່າຍ້າຍ backend ສຳເລັດແລ້ວ.
+**NOT RUN:** Supabase Auth/PostgREST ຈິງ, hosted advisors, concurrent connections, financial reconciliation ຂໍ້ມູນຈິງ. Excel ກວດແລ້ວ 578 ລາຍການ/578 ລະຫັດບໍ່ຊ້ຳ ແຕ່ບໍ່ມີຄໍລຳມູນຄ່າງົບ. ບໍ່ໄດ້ທົດສອບ login ໃນເວັບຈິງ ຫຼືອ້າງວ່າຍ້າຍ backend ສຳເລັດແລ້ວ.
 
 ## ສິ່ງທີ່ຕ້ອງຕັດສິນກ່ອນ cutover
 
-1. ຕ້ອງມີໄຟລ໌ `MKT TEAM B(2).xlsx` ເພື່ອນັບແລະກວດຂໍ້ມູນ; ຍັງບໍ່ມີໃນ workspace. SQL draft ເກົ່າກໍຍັງບໍ່ມີ.
+1. Excel ໄດ້ກວດໂຄງສ້າງແລ້ວ; ຍັງຕ້ອງກວດມູນຄ່າງົບ/ລາຍຈ່າຍຈາກ GAS/Sheets ທີ່ຖືກຕ້ອງ. SQL draft ເກົ່າຍັງບໍ່ໄດ້ກວດ.
 2. ເລືອກ email/password ຫຼື username adapter ທີ່ປອດໄພ. ຍັງບໍ່ສ້າງ Auth users.
 3. ຢືນຢັນວ່າການແກ້ງົບແມ່ນປີທີ່ເລືອກ ຫຼືລາມໄປປີຕໍ່ໄປ. Draft ນີ້ແກ້ສະເພາະປີທີ່ເລືອກ.
 4. Admin account/config/import backend ແລະ frontend adapter ຍັງເປັນແຜນ, ບໍ່ແມ່ນຟັງຊັນ production ທີ່ພ້ອມໃຊ້.
 5. ຕ້ອງກວດ unsynced browser data, ງົບທີ່ຂາດມູນຄ່າ ແລະປະຫວັດນອກໄລຍະສັນຍາໂດຍບໍ່ລຶບຂໍ້ມູນ.
 
 **ບໍ່ໄດ້ປ່ຽນ Supabase Database, GitHub main ຫຼື deployment.** ແອັບຈິງຍັງໃຊ້ GAS ຄືເກົ່າ. ສະຖານະ Draft PR ຈະຢູ່ໃນຄຳຕອບສົ່ງມອບພ້ອມລິ້ງ; ບໍ່ Merge.
+
+Follow-up: ເພີ່ມ workflow tests 27 ຂໍ້, read-only workbook audit script, native concurrency runner ແລະ review-only CI. Native runner ຍັງ NOT RUN ໃນເຄື່ອງນີ້ເພາະບໍ່ສາມາດຮັນ PostgreSQL ເປັນ non-root; ລໍກວດຜົນ CI. ບໍ່ໄດ້ປ່ຽນ migration schema ຫຼືໂຄດ frontend/GAS ໃນ follow-up ນີ້.

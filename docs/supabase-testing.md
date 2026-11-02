@@ -12,7 +12,7 @@ On audited source commit `73d664de62bece11ff39cdf4fc1e2f09d5f036ac` plus this re
 | `for test_file in tests/*.test.ts; do node --import tsx "$test_file" || exit; done` | PASS; all 15 existing TypeScript test entrypoints |
 | annual-budgets and excel-calendar-date with TZ=Asia/Vientiane and TZ=America/Los_Angeles | PASS in both timezones |
 | `./node_modules/.bin/vite build` and updated `npm run build` | PASS; PWA output generated; existing >500kB chunk warning |
-| `node supabase/review/run-local.mjs` with PGLITE_MODULE pointing to separately installed PGlite 0.3.14 | PASS: migration, replay, 136 SQL assertions, populated rollback refusal and empty rollback |
+| `node supabase/review/run-local.mjs` with PGLITE_MODULE pointing to separately installed PGlite 0.3.14 | PASS: migration, replay, 136 regression + 27 workflow assertions, populated rollback refusal and empty rollback |
 | `git diff --check` after staging | PASS |
 
 PGlite executes real PostgreSQL SQL/PLpgSQL, row policies, constraints and role changes in a disposable in-memory instance. Its Auth tables/functions in this harness are deliberately **minimal stubs**, not Supabase Auth. No project connection or production credential is used. This verifies more than SQL text inspection, but does not prove hosted Auth, Data API or concurrency correctness.
@@ -30,6 +30,8 @@ PGLITE_MODULE=/tmp/foc-phase1-tools/node_modules/@electric-sql/pglite/dist/index
 
 The harness creates an in-memory database, stubs auth.uid/auth.jwt from trusted test claims, applies the migration twice, executes `supabase/tests/phase1-regression.sql` (fixtures wrapped in ROLLBACK), tests refusal to drop a populated schema, then drops the empty schema. It closes the DB even on error. For a real disposable local Supabase instance, SQL assertions can run as DB owner with SET ROLE privileges, after confirming fixture auth.sessions columns against the installed Auth schema. Never use test claim setters in a real application.
 
+The additional `phase1-workflows.sql` suite checks customer create/edit/delete, immutable team ownership, Admin-only contract/condition management, overlap rejection, condition versions, single-year budget edits, invalid/missing money, approved overspending and deletion history/receipts. The local harness runs both suites (163 assertions total).
+
 Assertions include each B1–B7's own customer and child read isolation; own budget create/edit; cross-team parent/contract mismatch; direct insert/update and role elevation rejection; forged user_metadata; server-owned financial payload rejection; inactive profiles; stale JWT after disable; missing Auth session; anon denial; operation replay and changed-request rejection; stale-version conflicts; leap anniversary; transaction date/FK/overbudget validation; cancellation exactly once; SQL text treated as data; Admin all-team access; audit/receipt counts; all proposed public tables RLS; no public SECURITY DEFINER functions.
 
 ## NOT RUN — required before cutover
@@ -37,7 +39,7 @@ Assertions include each B1–B7's own customer and child read isolation; own bud
 - Real Supabase Auth enroll/login/reset/refresh/signout, user disable/role change under real JWTs, session cleanup behavior, HTTP rate limits and enrollment adapter.
 - PostgREST/GraphQL schema exposure and explicit grants on actual hosted version; REST RPC responses/SQLSTATE mapping; actual policies via platform advisors.
 - Multi-connection concurrent writes (PGlite is a single in-process connection). The sequential stale-version assertion does not count as a concurrency test.
-- Actual workbook validation, live-source financial reconciliation, historical exceptions, privileged Admin config/account/import services.
+- Workbook structural validation is now complete (578 rows); live-source monetary reconciliation, historical exceptions and privileged Admin config/account/import services remain NOT RUN.
 - Supabase frontend adapter, PWA migration, offline queue reconciliation, signed cutover/rollback rehearsal.
 - Hosted security/performance advisors, query plans at real data volume. No hosted API call was made for these.
 
@@ -57,3 +59,22 @@ select public.mkt_mutate('SAVE_BUDGET',
 In B submit the same data with amount 120, operation `bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb`, expected version 1. B must wait for A's parent lock. Commit A; B must then raise SQLSTATE 40001. Roll back B, read version 2 / amount 110, and explicitly retry B with a **new** operation and version 2 if desired.
 
 Repeat with two ADD_TRANSACTION operations against the same remaining amount: at most one initially commits; the other conflicts, then a reviewed retry must reject overspending if no Admin exception exists. Repeat concurrent CANCEL_TRANSACTION against the same transaction: one succeeds, the other conflicts/already-cancelled; total excludes that transaction exactly once. Repeat same operation UUID concurrently: exactly one audit/receipt/transaction, both callers receive identical result after A commits. Change actor/payload under the same UUID: reject 22023. Finally test disabling the profile/session in a separate privileged connection while a write is in flight, and document transaction boundary/cleanup timing. Inspect deadlocks, row locks and audit integrity; do not assume these outcomes from the single-connection harness.
+
+## Follow-up native test runner and CI
+
+`supabase/review/run-concurrency.mjs` starts its own disposable **loopback-only** PostgreSQL 17.11 server with generated credentials and three independent connections. It accepts no hosted DB URL or existing credentials, never creates an OS account, and cleans up its temporary cluster. Its planned checks observe actual lock waits for competing budget edits, expense writes, identical operation retries, cancellations and profile disable. Auth tables/JWT functions are still stubs.
+
+**Local native execution: NOT RUN.** This managed environment uses root; `runuser` cannot set groups and `setpriv` cannot switch UID. The runner correctly refuses root before starting a server. We did not disable PostgreSQL's root restriction. `node --check` passes for both new JS utilities.
+
+`supabase/review/test-tools/package.json` and its lockfile pin test-only dependencies. `.github/workflows/supabase-review.yml` runs on pull requests and manual dispatch with only contents:read, no secrets, no environment and no deployment steps. It installs locked test tools with lifecycle scripts disabled; the native runner uses the package's documented symlink rehydration option. CI execution must be inspected before native concurrency is marked PASS.
+
+On a non-root Linux/macOS development account after installing the locked dependencies:
+
+```bash
+npm ci --prefix supabase/review/test-tools --ignore-scripts --no-audit --no-fund
+EMBEDDED_POSTGRES_MODULE="$PWD/supabase/review/test-tools/node_modules/embedded-postgres/dist/index.js" \
+PG_MODULE="$PWD/supabase/review/test-tools/node_modules/pg/esm/index.mjs" \
+node supabase/review/run-concurrency.mjs
+```
+
+The native package version is a pinned beta distribution of PostgreSQL binaries; it is test-only and never used by the application or a production DB.

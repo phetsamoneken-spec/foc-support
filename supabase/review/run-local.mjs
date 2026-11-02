@@ -19,6 +19,9 @@ try {
  const tests=await readFile(new URL('tests/phase1-regression.sql',base),'utf8');
  await db.exec(tests);
  console.log('PASS SQL regression ('+(tests.match(/select pg_temp\.(assert_true|expect_error)\(/g)||[]).length+' assertions)');
+ const workflows=await readFile(new URL('tests/phase1-workflows.sql',base),'utf8');
+ await db.exec(workflows);
+ console.log('PASS SQL workflows ('+(workflows.match(/select pg_temp\.(assert_true|expect_error)\(/g)||[]).length+' assertions)');
  const rollback=await readFile(new URL('review/rollback-empty.sql',base),'utf8');
  await db.exec("insert into public.mkt_customers(code,name,team,mde) values('ROLLBACK-GUARD','Synthetic','B1','MDE-B1')");
  let refused=false;

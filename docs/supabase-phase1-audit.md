@@ -32,7 +32,7 @@ Inspected default-branch commit `73d664de62bece11ff39cdf4fc1e2f09d5f036ac` on 20
 | SESSIONS | GAS session digest, expiry, user/password version | Do not migrate; fresh Supabase Auth login |
 | USERS password hash | GAS backend password credential | Do not migrate into public tables; approved reset/invite flow later |
 
-No Excel workbook or preliminary SQL draft is attached in this workspace. Only the master prompt is attached. **Workbook sheet names, row counts, duplicates, missing cells, dates and team counts NOT VERIFIED.** The approximate 578 figure is not an audit result. No private workbook or live Sheet was fetched.
+At initial preparation only the master prompt was attached. During the 2026-11-02 follow-up the exact workbook was located and read privately: **578 rows and 578 unique customer codes** on Sheet1, with all eight required fields populated and no invalid team/date/quantity rows. See `docs/supabase-workbook-audit.md` for aggregate evidence. No private workbook or row values are committed. Monetary amounts and live Sheets reconciliation remain unverified. The preliminary SQL draft has not been read.
 
 ## Proposed relationships
 
@@ -53,7 +53,7 @@ The other proposed tables are mkt_settings, mkt_categories, mkt_deleted_customer
 
 ## Missing decisions / constraints
 
-1. Supply `MKT TEAM B(2).xlsx` and optionally the preliminary SQL draft for actual source verification. Do not treat the draft as approved SQL.
+1. Workbook structural checks are complete; supply/identify the approved current monetary budget and transaction export from the correct GAS/Sheets database for private reconciliation. The preliminary SQL draft is optional and remains unreviewed; do not treat it as approved SQL.
 2. Approve email/password enrollment or a rate-limited server-side username adapter; no fake email generation or public username-to-email directory is implemented.
 3. Decide single-year budget edit vs propagating to future periods. This draft uses single-year edits, with version conflicts requiring reload.
 4. Renewal and condition/price changes remain Admin-only, consistent with current backend. Teams can create customers, but an Admin creates their contract before they create annual budgets. Decide whether initial contract creation should be allowed for a team.
