@@ -8,7 +8,7 @@ export const LoginView: React.FC = () => {
   const lang: Language = settings.language;
   const t = translations[lang];
 
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState(storage.usesSupabase?'':'admin');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,18 +64,19 @@ export const LoginView: React.FC = () => {
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                {lang === 'lo' ? 'ຊື່ຜູ້ໃຊ້ງານ (USERNAME)' : 'Username'}
+                {storage.usesSupabase ? (lang==='lo'?'ອີເມວ (EMAIL)':'Email') : (lang === 'lo' ? 'ຊື່ຜູ້ໃຊ້ງານ (USERNAME)' : 'Username')}
               </label>
               <div className="relative rounded-xl shadow-xs">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <User className="h-4 w-4" />
                 </div>
                 <input
-                  type="text"
+                  type={storage.usesSupabase?"email":"text"}
+                  autoComplete="username"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin..."
+                  placeholder={storage.usesSupabase?"name@example.com":"admin..."}
                   className="block w-full pl-10 pr-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition"
                 />
               </div>
@@ -91,6 +92,7 @@ export const LoginView: React.FC = () => {
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

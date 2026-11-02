@@ -41,7 +41,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({
   // Default contract dates: e.g. next 1-year cycle
   const [commencingOn, setCommencingOn] = useState('2026-11-01');
   const [expiringOn, setExpiringOn] = useState('2027-10-31');
-  const [annualBudget, setAnnualBudget] = useState<number>(initialQty * pricePerCrate);
+  const [annualBudget, setAnnualBudget] = useState<number>(storage.usesSupabase?0:initialQty * pricePerCrate);
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -54,7 +54,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({
     setCustomerCode(newCode);
     const cond = storage.getCustomerCondition(newCode);
     const qty = cond?.conditionQuantity || 125;
-    setAnnualBudget(qty * pricePerCrate);
+    if(!storage.usesSupabase)setAnnualBudget(qty * pricePerCrate);
   };
 
   const [isSaving,setIsSaving]=useState(false);

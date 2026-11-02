@@ -1,0 +1,13 @@
+{
+  "name": "foc-supabase-review-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Test-only tools for disposable databases; never bundled into the frontend",
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "embedded-postgres": "17.11.0-beta.19",
+    "pg": "8.16.3",
+    "supabase": "2.81.3"
+  }
+}

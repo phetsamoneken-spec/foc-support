@@ -1,3 +1,5 @@
+import {dataBackend, supabaseConfig} from '../config/dataBackend';
+import {SupabaseRepository, SupabaseFailure, type SupabaseOperation} from './supabaseRepository';
 import {makeBrowserRecovery,type BrowserRecovery} from './legacyRecovery';
 import {businessWriteKey,newBusinessWriteId,type PendingBusinessWrite,type BusinessWriteKind,type BusinessWriteResult,type BusinessWriteState} from './businessWrites';
 import {businessToday, isCalendarDate, projectAnnualBudgets, selectAnnualBudget, refreshBudgetTotals} from './annualBudgets';
@@ -75,7 +77,14 @@ function safeRemoveItem(key: string): void {
   }
 }
 
-class StorageService {
+export class StorageService {
+  public readonly usesSupabase: boolean;
+  private supabase: SupabaseRepository | null = null;
+  private supabaseEpoch = 0;
+  private supabaseReadSequence = 0;
+  private supabaseFlight: Promise<BusinessWriteResult> | null = null;
+  private supabaseWriteState: BusinessWriteState = {status:'idle',message:'',pending:false};
+
   private customers: Customer[] = [];
   private conditions: CustomerCondition[] = [];
   private contracts: Contract[] = [];
@@ -89,13 +98,90 @@ class StorageService {
   private sheetLoadSequence = 0;
   private deletionSupport:{endpoint:string;actorId:string;token:string}|null=null;
   private rememberDeletionSupport(result:AccountResponse,endpoint:string,actorId:string,token:string){this.deletionSupport=result.deletionVersion===1?{endpoint,actorId,token}:null;}
+  private clearSupabaseView() {
+    ++this.supabaseEpoch; ++this.supabaseReadSequence;
+    this.currentUser=null;this.users=[];this.logs=[];
+    this.customers=[];this.conditions=[];this.contracts=[];this.budgets=[];this.transactions=[];
+    this.supabaseWriteState={status:'idle',message:'',pending:false};this.notify();
+  }
+  private supabasePendingKey() { return this.currentUser?'foc-supabase-write-v1:'+new URL(supabaseConfig.url).host+':'+this.currentUser.id:''; }
+  private supabasePending(): {actorId:string;project:string;operations:SupabaseOperation[]}|null {
+    try {const value=JSON.parse(safeGetItem(this.supabasePendingKey())||'null');return value?.actorId===this.currentUser?.id&&value.project===supabaseConfig.url&&Array.isArray(value.operations)?value:null;}catch{return null;}
+  }
+  private async loadSupabase(initial=false): Promise<BusinessWriteResult> {
+    const epoch=this.supabaseEpoch, actorId=this.currentUser?.id, sequence=++this.supabaseReadSequence;
+    this.sheetDataState={status:'loading',message:'ກຳລັງໂຫຼດຂໍ້ມູນ…'};this.notify();
+    try {
+      const result=await this.supabase!.snapshot();
+      if(epoch!==this.supabaseEpoch||sequence!==this.supabaseReadSequence||(!initial&&result.user.id!==actorId))return {success:false,message:'Account changed; response ignored'};
+      this.supabase!.acceptSnapshot(result);
+      this.currentUser=result.user;this.users=result.users;this.logs=result.logs;
+      this.customers=result.business.customers;this.conditions=result.business.conditions;this.contracts=result.business.contracts;this.budgets=result.business.budgets;this.transactions=result.business.transactions;
+      this.recalculateContractStatuses();
+      this.sheetDataState={status:'loaded',message:'ຂໍ້ມູນຫຼ້າສຸດຈາກ Supabase'};
+      this.supabaseWriteState={...this.supabaseWriteState,pending:!!this.supabasePending()};
+      this.notify();return {success:true,message:'Supabase data loaded'};
+    } catch(error) {
+      if(epoch!==this.supabaseEpoch||sequence!==this.supabaseReadSequence)return {success:false,message:'Account changed'};
+      const message=error instanceof Error?error.message:'Could not load data';
+      if(initial || error instanceof SupabaseFailure&&['401','42501','PGRST301'].includes(error.code))this.clearSupabaseView();
+      this.sheetDataState={status:'error',message};this.notify();return {success:false,message};
+    }
+  }
+  private async commitSupabase(kind:BusinessWriteKind,data:Record<string,unknown>):Promise<BusinessWriteResult> {
+    if(!this.currentUser)return {success:false,message:'Sign in first'};
+    if(this.supabasePending())return {success:false,message:'Retry the pending save first'};
+    if(this.supabaseFlight)return {success:false,message:'Wait for the current save'};
+    if(this.sheetDataState.status!=='loaded')return {success:false,message:'Load the latest data before saving'};
+    try {
+      const operations=this.supabase!.operations(kind,data,this.businessSnapshot(),this.currentUser);
+      const value={actorId:this.currentUser.id,project:supabaseConfig.url,operations};
+      const key=this.supabasePendingKey(),text=JSON.stringify(value);
+      // Do not silently fall back to volatile memory for a financial operation.
+      window.localStorage.setItem(key,text);if(window.localStorage.getItem(key)!==text)throw Error('Enable browser storage before saving');
+      return this.retrySupabase();
+    }catch(error){return {success:false,message:error instanceof Error?error.message:'Save failed'};}
+  }
+  private async retrySupabase():Promise<BusinessWriteResult> {
+    if(this.supabaseFlight)return this.supabaseFlight;
+    const pending=this.supabasePending(),key=this.supabasePendingKey(),epoch=this.supabaseEpoch;
+    if(!pending)return {success:false,message:'No pending save for this account'};
+    const run=async():Promise<BusinessWriteResult>=>{
+      this.supabaseWriteState={status:'saving',message:'ກຳລັງບັນທຶກ…',pending:true};this.notify();
+      try {
+        // Verify the real Auth user/profile again; never replay another account's outbox.
+        const auth=await this.supabase!.client.auth.getUser();
+        if(auth.error||auth.data.user?.id!==pending.actorId)throw new SupabaseFailure('Sign in again','401');
+        if(epoch!==this.supabaseEpoch) return {success:false,message:'Account changed; pending save retained'};
+        await this.supabase!.mutate(pending.operations);
+        // A confirmed operation may be removed under its original owner after logout.
+        safeRemoveItem(key);
+        if(epoch!==this.supabaseEpoch)return {success:true,message:'Saved; account changed'};
+        const refreshed=await this.loadSupabase();
+        const message=refreshed.success?'ບັນທຶກສຳເລັດ':'Saved; refresh data to see the result';
+        this.supabaseWriteState={status:'saved',message,pending:false};this.notify();return {success:true,message};
+      }catch(error) {
+        if(epoch!==this.supabaseEpoch)return {success:false,message:'Account changed; pending save retained'};
+        const code=error instanceof SupabaseFailure?error.code:'';
+        // Explicit SQL rejection is a rolled-back batch. Network errors remain uncertain.
+        const rejected=!!code && code!=='401' && code!=='PGRST301';
+        if(rejected)safeRemoveItem(key);
+        if(code==='PT409')await this.loadSupabase();
+        const message=code==='PT409'?'ຂໍ້ມູນຖືກແກ້ໄຂແລ້ວ; ກວດຂໍ້ມູນຫຼ້າສຸດແລະບັນທຶກໃໝ່':error instanceof Error?error.message:'Could not save; retry the pending operation';
+        this.supabaseWriteState={status:'error',message,pending:!rejected};this.notify();return {success:false,message};
+      }
+    };
+    this.supabaseFlight=run();try{return await this.supabaseFlight;}finally{this.supabaseFlight=null;}
+  }
   private sheetPublishMessage='';
   private sheetPublishCache:{key:string;text:string;value:PendingSheetPublish}|null=null;
   private sheetPublishKey(endpoint=this.settings.appsScriptUrl){return this.currentUser?'foc-pending-publish-v1:'+this.currentUser.id+':'+endpoint:'';}
   public getPendingSheetPublish(endpoint=this.settings.appsScriptUrl):import('./sheetPublish').PendingSheetPublish|null {
+    if(this.usesSupabase)return null;
     try{const key=this.sheetPublishKey(endpoint),text=safeGetItem(key);if(!text)return null;const value=this.sheetPublishCache?.key===key&&this.sheetPublishCache.text===text?this.sheetPublishCache.value:decodeSheetPublication(text);if(value?.actorId!==this.currentUser?.id||value.endpoint!==endpoint||!value.payload||!Array.isArray(value.payload.customers))return null;this.sheetPublishCache={key,text,value};return value;}catch{return null;}
   }
   public savePendingSheetPublish(endpoint:string,payload:Record<string,unknown>,source:import('./sheetPublish').SheetPublishSource={}){
+    if(this.usesSupabase)throw Error('Sheet publication is disabled for Supabase');
     if(!this.canManageSettings())throw Error('Admin permission required');
     const value:import('./sheetPublish').PendingSheetPublish={...source,id:newBusinessWriteId(),actorId:this.currentUser!.id,endpoint,payload,createdAt:new Date().toISOString()};
     const key=this.sheetPublishKey(endpoint),text=encodeSheetPublication(value);
@@ -134,8 +220,9 @@ class StorageService {
   private writeFeedback:{key:string;status:BusinessWriteState['status'];message:string}|null=null;
   private recoveryFlight:Promise<BusinessWriteResult>|null=null;
   private recoveryPointer(){return 'foc-recovery-latest:'+this.currentWriteKey();}
-  public getLocalRecoveryBackup():BrowserRecovery|null {try{const key=safeGetItem(this.recoveryPointer());return key?JSON.parse(safeGetItem(key)||'null'):null;}catch{return null;}}
+  public getLocalRecoveryBackup():BrowserRecovery|null {if(this.usesSupabase)return null;try{const key=safeGetItem(this.recoveryPointer());return key?JSON.parse(safeGetItem(key)||'null'):null;}catch{return null;}}
   public async recoverLegacyCache(reason='LOAD_SHEET'):Promise<BusinessWriteResult>{
+    if(this.usesSupabase)return {success:false,message:'Legacy Sheet recovery stays on the original backend'};
     if(this.getPendingSheetPublish())return {success:false,message:'Finish or cancel the pending Sheet publication first. Uploaded data is retained.'};
     if(this.recoveryFlight)return this.recoveryFlight;
     const actor=this.currentUser,endpoint=this.settings.appsScriptUrl,token=remoteSession(endpoint)?.token;
@@ -174,6 +261,7 @@ class StorageService {
   private storeBusinessBaseline(value:{endpoint:string;fingerprint:string;revision?:string}){this.businessBaselineText=JSON.stringify(value);safeSetItem('mkt_sheet_business_baseline_v1',this.businessBaselineText);}
   private currentWriteKey(){return this.currentUser?businessWriteKey(this.currentUser.id,this.settings.appsScriptUrl):'';}
   public getPendingBusinessWrite():PendingBusinessWrite|null {
+    if(this.usesSupabase){const p=this.supabasePending();return p?{id:p.operations[0]?.p_operation,kind:'UPDATE_BUDGET',data:{},actorId:p.actorId,endpoint:p.project,createdAt:''}:null;}
     const key=this.currentWriteKey();if(!key)return null;
     try{const pending=JSON.parse(safeGetItem(key)||'null');return pending?.actorId===this.currentUser?.id&&pending.endpoint===this.settings.appsScriptUrl?pending:null;}catch{return null;}
   }
@@ -194,12 +282,15 @@ class StorageService {
     return false;
   }
   public getBusinessWriteState():BusinessWriteState {
+    if(this.usesSupabase)return {...this.supabaseWriteState,pending:!!this.supabasePending()};
     const pending=Boolean(this.getPendingBusinessWrite()),feedback=this.writeFeedback?.key===this.currentWriteKey()?this.writeFeedback:null;
     return {status:feedback?.status||(pending?'error':'idle'),message:feedback?.message||(pending?'ມີການບັນທຶກທີ່ລໍສົ່ງໄປ Sheet (Pending Sheet save)':''),pending};
   }
   public beginBulkPublish(){if(this.getPendingBusinessWrite()||this.businessWriteFlight||this.recoveryFlight||this.bulkPublishing)throw Error('Finish the pending Sheet save before importing or publishing a full snapshot.');this.bulkPublishing=true;}
   public endBulkPublish(){this.bulkPublishing=false;this.notify();}
   public async commitBusinessChange(kind:BusinessWriteKind,data:Record<string,unknown>):Promise<BusinessWriteResult>{
+    if(this.usesSupabase)return this.commitSupabase(kind,data);
+    if(kind==='CREATE_BUDGET')return {success:false,message:'Initial-period setup requires Supabase'};
     if(!this.currentUser)return {success:false,message:'Sign in first'};
     if(this.getPendingSheetPublish())return {success:false,message:'Finish or cancel the pending Sheet publication first. Uploaded data is retained.'};
     if(!this.settings.appsScriptUrl){
@@ -234,6 +325,7 @@ class StorageService {
     safeSetItem(key,serialized);return this.retryPendingBusinessWrite();
   }
   public async retryPendingBusinessWrite():Promise<BusinessWriteResult>{
+    if(this.usesSupabase)return this.retrySupabase();
     if(this.businessWriteFlight)return this.businessWriteFlight;
     const pending=this.getPendingBusinessWrite(),actor=this.currentUser,key=this.currentWriteKey(),endpoint=this.settings.appsScriptUrl,token=remoteSession(endpoint)?.token;
     if(!pending)return {success:true,message:''};
@@ -281,6 +373,7 @@ class StorageService {
   private annualBudgetsPrepared = false;
   private budgetCalendarDay = businessToday();
   private ensureAnnualBudgets() {
+    if(this.usesSupabase)return; // Missing annual budgets require explicit Admin input.
     if(this.annualBudgetsPrepared)return;
     const clean=!this.hasUnsyncedBusinessData();
     const projected=projectAnnualBudgets(this.contracts,this.budgets,this.transactions);
@@ -306,6 +399,7 @@ class StorageService {
     return user;
   }
   public async refreshSharedSettings():Promise<{success:boolean;message:string}> {
+    if(this.usesSupabase)return this.loadSupabase();
     const actor=this.currentUser,endpoint=this.settings.appsScriptUrl,token=remoteSession(endpoint)?.token;
     if(!actor||!token)return {success:false,message:'Sign in first'};
     try{
@@ -324,6 +418,7 @@ class StorageService {
   }
   public exportBusinessBackup() { return JSON.parse(JSON.stringify(this.businessSnapshot())) as BusinessSnapshot; }
   public hasUnsyncedBusinessData(): boolean {
+    if(this.usesSupabase)return false;
     const snapshot=this.businessSnapshot(), fingerprint=businessFingerprint(snapshot);
     try {
       const baseline=JSON.parse(this.businessBaselineText || 'null');
@@ -341,6 +436,7 @@ class StorageService {
     }
   }
   public async loadBusinessFromSheets(replaceLocal=false,background=false): Promise<{success:boolean;message:string}> {
+    if(this.usesSupabase)return this.loadSupabase();
     const endpoint=this.settings.appsScriptUrl, actor=this.currentUser;
     const token=remoteSession(endpoint)?.token;
     if(!actor || !token)return {success:false,message:'Sign in to Sheets first.'};
@@ -389,11 +485,26 @@ class StorageService {
     } catch(error){return publish('error',error instanceof Error?error.message:String(error));}
   }
 
-  constructor() {
+  constructor(backend: 'gas'|'supabase'=dataBackend, repository?:SupabaseRepository) {
+    this.usesSupabase=backend==='supabase';
+    this.supabase=repository||null;
     this.init();
   }
 
   public init() {
+    if(this.usesSupabase){
+      this.clearSupabaseView();
+      this.settings={...INITIAL_SETTINGS,appsScriptUrl:'',spreadsheetId:''};
+      try{const local=JSON.parse(safeGetItem('foc-supabase-preferences-v1')||'{}');if(['lo','en'].includes(local.language))this.settings.language=local.language;if(['glass','executive','neon','minimal','luxury'].includes(local.dashboardTheme))this.settings.dashboardTheme=local.dashboardTheme;}catch{}
+      if(!this.supabase){
+        this.supabase=new SupabaseRepository(supabaseConfig.url,supabaseConfig.key);
+        this.supabase.client.auth.onAuthStateChange((event,session)=>{
+          if(event==='SIGNED_OUT')this.clearSupabaseView();
+          if(event==='SIGNED_IN'&&this.currentUser&&session?.user.id!==this.currentUser.id){this.clearSupabaseView();setTimeout(()=>void this.loadSupabase(true),0);}
+        });
+      }
+      void this.loadSupabase(true);return;
+    }
     this.deletionSupport=null;
     this.businessBaselineText=safeGetItem('mkt_sheet_business_baseline_v1');
     this.annualBudgetsPrepared=false;
@@ -522,11 +633,13 @@ class StorageService {
   }
 
   public resetToSeedData() {
+    if(this.usesSupabase)throw Error('Demo reset is unavailable for Supabase');
     if(!this.canManageSettings())throw new Error('Admin permission required');
     if(this.getPendingBusinessWrite())throw Error('Finish the pending Sheet save first');
     this.initializeSeedData();
   }
   private initializeSeedData() {
+    if(this.usesSupabase)return;
     const seed = generateSeedData();
     this.customers = seed.customers;
     this.conditions = seed.conditions;
@@ -552,6 +665,7 @@ class StorageService {
   }
 
   private persistAll() {
+    if(this.usesSupabase)return;
     this.annualBudgetsPrepared=false;
     safeSetItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(this.customers));
     safeSetItem(STORAGE_KEYS.CONDITIONS, JSON.stringify(this.conditions));
@@ -569,6 +683,7 @@ class StorageService {
   }
 
   public setCurrentUser(user: User | null) {
+    if(this.usesSupabase){if(!user)this.clearSupabaseView();return;} // Only verified repository responses establish identity.
     this.currentUser = user;
     if (user) {
       safeSetItem(STORAGE_KEYS.AUTH, JSON.stringify(user));
@@ -580,6 +695,11 @@ class StorageService {
   }
 
   public async login(username: string, password?: string): Promise<{ success: boolean; message?: string }> {
+    if(this.usesSupabase){
+      this.clearSupabaseView();const epoch=this.supabaseEpoch;
+      try{await this.supabase!.login(username,password||'');if(epoch!==this.supabaseEpoch)return {success:false,message:'Account changed'};return await this.loadSupabase(true);}
+      catch(error){return {success:false,message:error instanceof Error?error.message:'Sign-in failed'};}
+    }
     if (!this.settings.appsScriptUrl) return this.loginLocally(username,password);
     const result = await accountRequest(this.settings.appsScriptUrl,'AUTH_LOGIN',{username,password});
     if (result.success && result.user) this.setCurrentUser(result.user);
@@ -587,12 +707,14 @@ class StorageService {
   }
 
   public async backupDatabase():Promise<BusinessWriteResult>{
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase project backup tools'};
     if(!this.canManageSettings())return {success:false,message:'Admin permission required'};
     if(this.hasUnsyncedBusinessData()){const recovered=await this.recoverLegacyCache('MANUAL_BACKUP');if(!recovered.success)return recovered;}
     const result=await accountRequest(this.settings.appsScriptUrl,'BACKUP_DATABASE');return {success:result.success,message:result.message||'Database backup failed',entityId:result.backupId};
   }
-  public hasRemoteUserSession() { return !!remoteSession(this.settings.appsScriptUrl); }
+  public hasRemoteUserSession() { return this.usesSupabase?!!this.currentUser:!!remoteSession(this.settings.appsScriptUrl); }
   private async remoteAccount(action: string, payload: Record<string, unknown> = {}, migratedLocalId?: string) {
+    if(this.usesSupabase)return {success:false,message:'Manage accounts in Supabase Authentication'};
     const result = await accountRequest(this.settings.appsScriptUrl,action,payload);
     if (result.success) {
       if (migratedLocalId) this.users = this.users.filter(user => user.id !== migratedLocalId);
@@ -619,6 +741,7 @@ class StorageService {
     return {success:result.success,message:result.message || (result.success ? 'Saved to Sheet USERS' : 'Account operation failed')};
   }
   private async mutateSheetUser(action: 'UPDATE_USER' | 'RESET_USER_PASSWORD', id: string, data: Partial<User>) {
+    if(this.usesSupabase)return {success:false,message:'Manage accounts in Supabase Authentication'};
     const local = this.users.find(user => user.id === id);
     const result = await this.remoteAccount(action,{...data,id});
     if (result.success || !/^(Error:\s*)?User not found$/i.test(result.message) || !local) return result;
@@ -643,6 +766,7 @@ class StorageService {
   }
   public async loadUsersFromSheets() { return this.remoteAccount('GET_USERS'); }
   public async updateOwnProfile(data: Partial<User>) {
+    if(this.usesSupabase)return {success:false,message:'Manage your profile through the administrator'};
     if (!this.currentUser) return {success:false,message:'Sign in first'};
     if (!this.settings.appsScriptUrl) return this.updateUser(this.currentUser.id,data);
     return this.remoteAccount('UPDATE_PROFILE',data);
@@ -672,6 +796,7 @@ class StorageService {
   }
 
   public logout() {
+    if(this.usesSupabase){this.clearSupabaseView();void this.supabase!.logout().catch(()=>{});return;}
     const endpoint = this.settings.appsScriptUrl;
     if (endpoint) {
       void accountRequest(endpoint,'AUTH_LOGOUT').finally(() => clearRemoteSession(endpoint));
@@ -710,6 +835,7 @@ class StorageService {
   }
 
   public getGoogleSheetsSnapshot() {
+    if(this.usesSupabase)throw Error('Sheet publication is disabled for Supabase');
     if (this.currentUser?.role !== 'ADMIN') {
       throw new Error('Only Admin can sync the complete database to Google Sheets.');
     }
@@ -734,6 +860,10 @@ class StorageService {
   }
 
   public updateSettings(newSettings: Partial<AppSettings>) {
+    if(this.usesSupabase){
+      if(Object.keys(newSettings).some(k=>!['language','dashboardTheme'].includes(k)))throw Error('Shared settings require the Admin configuration service');
+      const checked=sharedSettings(newSettings);this.settings={...this.settings,...checked};safeSetItem('foc-supabase-preferences-v1',JSON.stringify(checked));this.notify();return {persisted:true};
+    }
     if(!this.canManageSettings())throw new Error('Admin permission required');
     sharedSettings(newSettings);
     if(sharedSettingKeys.some(key=>newSettings[key]!==undefined&&newSettings[key]!==this.settings[key]))safeSetItem('mkt_shared_settings_pending_v1','true');
@@ -753,6 +883,7 @@ class StorageService {
   }
 
   public recalculateBudgetsByPricePerCrate(newPrice: number): { success: boolean; updatedCount: number } {
+    if(this.usesSupabase)return {success:false,updatedCount:0};
     if(!this.canManageSettings()||this.getPendingBusinessWrite())return {success:false,updatedCount:0};
     this.ensureAnnualBudgets();
     this.settings.pricePerCrate = Number(newPrice);
@@ -849,6 +980,7 @@ class StorageService {
   }
 
   public deleteCustomer(code: string): { success: boolean; message: string } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     const customer = this.getCustomerByCode(code);
     if (!customer || customer.status === 'DELETED') return { success:false, message:'ບໍ່ພົບຮ້ານຄ້ານີ້ ຫຼືຮ້ານຖືກລົບແລ້ວ (Store not found or already deleted)' };
     if (!this.canDeleteCustomer(code)) return { success:false, message:'ທ່ານບໍ່ມີສິດລົບຮ້ານຂອງທີມອື່ນ (Permission denied)' };
@@ -883,7 +1015,7 @@ class StorageService {
   public getContractBudget(contractId: string, date=businessToday(), clamp=true): Budget | undefined {
     const contract=this.contracts.find(row=>row.id===contractId);
     const eligible=this.getContractBudgets(contractId).filter(budget=>!budget.periodStart||!contract||budget.periodStart>=contract.commencingOn&&budget.periodStart<=contract.expiringOn);
-    return selectAnnualBudget(eligible,date,clamp);
+    return selectAnnualBudget(eligible,date,this.usesSupabase?false:clamp);
   }
   public getContractForDate(customerCode:string,date:string):Contract|undefined {
     return this.getCustomerContracts(customerCode).find(contract=>date>=contract.commencingOn&&date<=contract.expiringOn);
@@ -955,6 +1087,7 @@ class StorageService {
     allowException?: boolean;
     exceptionReason?: string;
   }): { success: boolean; message: string; transaction?: BudgetTransaction } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     const customer = this.getCustomerByCode(data.customerCode);
     if (!customer) {
       return { success: false, message: 'Customer not found' };
@@ -1053,6 +1186,7 @@ class StorageService {
     txnId: string,
     reason: string
   ): { success: boolean; message: string } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     this.ensureAnnualBudgets();
     const txn = this.transactions.find((t) => t.id === txnId);
     if (!txn) {
@@ -1112,6 +1246,7 @@ class StorageService {
     annualBudget: number;
     notes?: string;
   }): { success: boolean; message: string; contract?: Contract } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     const customer = this.getCustomerByCode(data.customerCode);
     if (!customer) {
       return { success: false, message: 'Customer not found' };
@@ -1173,6 +1308,7 @@ class StorageService {
     newAmount: number,
     notes?: string
   ): { success: boolean; message: string } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     if (this.currentUser?.role !== 'ADMIN') {
       return { success: false, message: 'ສະເພາະ Admin ເທົ່ານັ້ນທີ່ສາມາດປັບແກ້ງົບປະມານໄດ້' };
     }
@@ -1231,6 +1367,7 @@ class StorageService {
     address?: string;
     province?: string;
   }): { success: boolean; message: string } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     // RBAC: Non-admin users can only add customers to their own assigned team
     if (this.currentUser && this.currentUser.role !== 'ADMIN' && this.currentUser.team !== 'ALL') {
       if (data.team !== this.currentUser.team) {
@@ -1317,6 +1454,7 @@ class StorageService {
     team: Team;
     email?: string;
   }): Promise<{ success: boolean; message: string }> {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     if (this.settings.appsScriptUrl) return this.remoteAccount('ADD_USER',data);
     if (this.users.some((u) => u.username.toLowerCase() === data.username.toLowerCase())) {
       return { success: false, message: 'ຊື່ຜູ້ໃຊ້ນີ້ມີຢູ່ແລ້ວ (Duplicate Username)' };
@@ -1345,6 +1483,7 @@ class StorageService {
     id: string,
     data: Partial<Pick<User, 'username' | 'password' | 'fullName' | 'role' | 'team' | 'isActive' | 'email'>>
   ): Promise<{ success: boolean; message: string }> {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     if (this.settings.appsScriptUrl) return this.mutateSheetUser('UPDATE_USER',id,data);
     const user = this.users.find((u) => u.id === id);
     if (!user) {
@@ -1376,6 +1515,7 @@ class StorageService {
   }
 
   public async resetUserPassword(id: string, newPassword?: string): Promise<{ success: boolean; message: string; password?: string }> {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     if (this.settings.appsScriptUrl) return this.mutateSheetUser('RESET_USER_PASSWORD',id,{password:newPassword});
     const user = this.users.find((u) => u.id === id);
     if (!user) {
@@ -1390,6 +1530,7 @@ class StorageService {
   }
 
   public async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     if (this.settings.appsScriptUrl) return this.remoteAccount('DELETE_USER',{id});
     const user = this.users.find((u) => u.id === id);
     if (!user) {
@@ -1415,6 +1556,7 @@ class StorageService {
   }
 
   public logAction(action: string, details: string) {
+    if(this.usesSupabase)return; // Only database audit entries are authoritative.
     const log: ActivityLog = {
       id: 'LOG-'+crypto.randomUUID(),
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
@@ -1533,6 +1675,7 @@ class StorageService {
     importedCount: number;
     errors: string[];
   } {
+    if(this.usesSupabase)return {success:false,importedCount:0,errors:['Import requires a separately validated Admin import']};
     if(this.getPendingBusinessWrite()||this.recoveryFlight)return {success:false,importedCount:0,errors:['Finish the pending Sheet save first']};
     if(!this.canManageSettings())return {success:false,importedCount:0,errors:['Admin permission required']};
     const lines = csvText.trim().split(/\r?\n/);
@@ -1669,6 +1812,7 @@ class StorageService {
 
   // --- Clear All Customers (Clean Slate for fresh Excel import) ---
   public clearAllCustomers(): { success: boolean; message: string } {
+    if(this.usesSupabase)return {success:false,message:'Use the Supabase save action'};
     if (this.currentUser?.role !== 'ADMIN') {
       return { success: false, message: 'ສະເພາະ Admin ເທົ່ານັ້ນທີ່ສາມາດລຶບລາຍຊື່ລູກຄ້າທັງໝົດໄດ້' };
     }
@@ -1700,6 +1844,7 @@ class StorageService {
     importedCount: number;
     errors: string[];
   } {
+    if(this.usesSupabase)return {success:false,importedCount:0,errors:['Import requires a separately validated Admin import']};
     if(this.getPendingSheetPublish())return {success:false,importedCount:0,errors:['Finish or cancel the pending Sheet publication first']};
     if(this.getPendingBusinessWrite()||this.recoveryFlight)return {success:false,importedCount:0,errors:['Finish the pending Sheet save first']};
     if(!this.canManageSettings())return {success:false,importedCount:0,errors:['Admin permission required']};

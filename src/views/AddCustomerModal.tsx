@@ -50,7 +50,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
   // Contract & Budget
   const [commencingOn, setCommencingOn] = useState(previousContract?.commencingOn||'2026-01-01');
   const [expiringOn, setExpiringOn] = useState(previousContract?.expiringOn||'2026-12-31');
-  const [annualBudget, setAnnualBudget] = useState<number>(previousBudget?.annualAmount??125*pricePerCrate);
+  const [annualBudget, setAnnualBudget] = useState<number>(previousBudget?.annualAmount??(storage.usesSupabase?0:125*pricePerCrate));
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -61,7 +61,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
   const handleQtyChange = (qty: number) => {
     setConditionQty(qty);
-    setAnnualBudget(qty * pricePerCrate);
+    if(!storage.usesSupabase)setAnnualBudget(qty * pricePerCrate);
   };
 
   const [isSaving,setIsSaving]=useState(false);
@@ -85,7 +85,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       address,
       province
     };
-    if(editing&&!isAdmin)for(const key of ['conditionQty','conditionUOM','conditionProductDescription','commencingOn','expiringOn','annualBudget'])delete payload[key];
+    if((editing||storage.usesSupabase)&&!isAdmin)for(const key of ['conditionQty','conditionUOM','conditionProductDescription','commencingOn','expiringOn','annualBudget'])delete payload[key];
     const res=await storage.commitBusinessChange(editing?'UPDATE_CUSTOMER':'ADD_CUSTOMER',payload);
 
     setIsSaving(false);
@@ -204,6 +204,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             />
           </div>
 
+          {(!storage.usesSupabase||isAdmin)&&<>
           {/* Condition Info */}
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
@@ -292,17 +293,18 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 required
                 min="0"
                 step="any"
-                disabled={editing&&!isAdmin}
+                disabled={editing&&(storage.usesSupabase||!isAdmin)}
                     value={annualBudget}
                 onChange={(e) => setAnnualBudget(Number(e.target.value))}
                 className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900"
               />
-              <span className="text-[10px] text-emerald-700 font-mono mt-1 block">
+              {!storage.usesSupabase&&<span className="text-[10px] text-emerald-700 font-mono mt-1 block">
                 {conditionQty} {conditionUOM || 'ລັງ'} × {storage.formatCurrency(pricePerCrate)} = {storage.formatCurrency(annualBudget)}
-              </span>
+              </span>}
             </div>
           </div>
 
+          </>}
           {/* Buttons */}
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
             <button

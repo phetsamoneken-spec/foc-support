@@ -1,0 +1,80 @@
+name: Supabase review checks (no deployment)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'supabase/**'
+      - 'docs/supabase-*.md'
+      - '.github/workflows/supabase-review.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install locked application and review-only dependencies
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix supabase/review/test-tools --ignore-scripts --no-audit --no-fund
+      - name: Type check and existing regression tests
+        run: |
+          npm run lint
+          node --import tsx tests/supabase-adapter.test.ts
+          node supabase/tests/reconcile-finances.test.mjs
+          node supabase/tests/staging-plan.test.mjs
+          node tests/gas-sync.test.cjs
+          for test_file in tests/*.test.ts; do node --import tsx "$test_file" || exit; done
+          TZ=Asia/Vientiane node --import tsx tests/annual-budgets.test.ts
+          TZ=America/Los_Angeles node --import tsx tests/annual-budgets.test.ts
+          TZ=Asia/Vientiane node --import tsx tests/excel-calendar-date.test.ts
+          TZ=America/Los_Angeles node --import tsx tests/excel-calendar-date.test.ts
+      - name: Disposable in-memory SQL tests and rollback guards
+        env:
+          PGLITE_MODULE: ${{ github.workspace }}/supabase/review/test-tools/node_modules/@electric-sql/pglite/dist/index.js
+        run: node supabase/review/run-local.mjs
+      - name: Disposable native PostgreSQL concurrency tests
+        env:
+          EMBEDDED_POSTGRES_MODULE: ${{ github.workspace }}/supabase/review/test-tools/node_modules/embedded-postgres/dist/index.js
+          PG_MODULE: ${{ github.workspace }}/supabase/review/test-tools/node_modules/pg/esm/index.mjs
+        run: node supabase/review/run-concurrency.mjs
+      - name: Build without deployment
+        env:
+          VITE_DATA_BACKEND: supabase
+        run: npm run build
+
+  auth-rest:
+    name: Local Auth and PostgREST (synthetic only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install locked isolated test tools
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix supabase/review/test-tools --ignore-scripts --no-audit --no-fund
+          npm rebuild --prefix supabase/review/test-tools supabase
+      - name: Test actual Auth and REST on disposable local Docker stack
+        env:
+          SUPABASE_CLI: ${{ github.workspace }}/supabase/review/test-tools/node_modules/.bin/supabase
+          PG_MODULE: ${{ github.workspace }}/supabase/review/test-tools/node_modules/pg/esm/index.mjs
+        run: node --import tsx supabase/review/run-local-api.mjs

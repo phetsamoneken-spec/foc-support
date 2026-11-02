@@ -237,7 +237,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           
           {/* Upload Excel Button */}
-          {isAdmin && <button
+          {isAdmin && !storage.usesSupabase && <button
             onClick={() => setShowUploadExcelModal(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition cursor-pointer shadow-xs active:scale-95"
             title="Upload Excel (.xlsx, .xls, .csv)"
@@ -256,7 +256,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
           </button>
 
           {/* Delete All Customers (Admin Only) */}
-          {isAdmin && sorted.length > 0 && (
+          {isAdmin && !storage.usesSupabase && sorted.length > 0 && (
             <button
               onClick={() => setShowDeleteAllModal(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition cursor-pointer shadow-xs"
@@ -290,19 +290,19 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
               {lang === 'lo' ? 'ຍັງບໍ່ມີຂໍ້ມູນລູກຄ້າໃນລະບົບ' : 'No Customer Records Found'}
             </h3>
             <p className="text-xs text-amber-800 max-w-md mx-auto mt-1">
-              {lang === 'lo'
+              {storage.usesSupabase?(lang==='lo'?'ເພີ່ມລູກຄ້າໃໝ່ ຫຼືໂຫຼດຂໍ້ມູນໃໝ່ຈາກ Supabase.':'Add a customer or refresh Supabase data.'):lang === 'lo'
                 ? (isAdmin ? 'ອັບໂຫຼດ Excel ຫຼືໂຫຼດຂໍ້ມູນຈາກ Sheet ກາງ.' : 'ກົດໂຫຼດຈາກ Sheet ເພື່ອເບິ່ງລູກຄ້າໃນທີມທີ່ Admin ກຳນົດໃຫ້ທ່ານ.')
                 : (isAdmin ? 'Upload Excel or load the shared Sheet data.' : 'Load from Sheet to see the customers assigned to your team by Admin.')}
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 pt-2">
-            {isAdmin && <button
+            {isAdmin && !storage.usesSupabase && <button
               onClick={() => setShowUploadExcelModal(true)}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 cursor-pointer"
             >
               {lang === 'lo' ? 'ອັບໂຫຼດໄຟລ໌ Excel ດຽວນີ້' : 'Upload Excel File Now'}
             </button>}
-            {isAdmin && !settings.appsScriptUrl && (
+            {isAdmin && !storage.usesSupabase && !settings.appsScriptUrl && (
               <button
                 onClick={() => {
                   storage.resetToSeedData();
@@ -487,7 +487,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right font-semibold text-slate-900 whitespace-nowrap">
-                        {storage.formatCurrency(item.budget?.annualAmount || 0)}
+                        {storage.usesSupabase&&!item.budget?'—':storage.formatCurrency(item.budget?.annualAmount || 0)}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="font-bold text-emerald-600">
@@ -595,6 +595,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
             );
           }}
           onOpenUploadExcel={() => {
+            if(storage.usesSupabase)return;
             setShowDeleteAllModal(false);
             setShowUploadExcelModal(true);
           }}

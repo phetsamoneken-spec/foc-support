@@ -34,6 +34,7 @@ jobs:
         run: npm run lint
       - name: Test Sheets sync and user accounts
         run: |
+          node --import tsx tests/supabase-adapter.test.ts
           node tests/gas-sync.test.cjs
           node --import tsx tests/remote-accounts.test.ts
           node --import tsx tests/customer-delete.test.ts
@@ -52,6 +53,8 @@ jobs:
           node --import tsx tests/gas-service.test.ts
           node --import tsx tests/app-updates.test.ts
       - name: Build the application
+        env:
+          VITE_DATA_BACKEND: supabase
         run: npm run build
       - name: Configure Pages
         uses: actions/configure-pages@v5

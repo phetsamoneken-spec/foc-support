@@ -1,3 +1,4 @@
+import {SupabaseDataNotice} from './SupabaseDataNotice';
 import React, {useEffect,useState} from 'react';
 import {RefreshCw} from 'lucide-react';
 import {storage} from '../services/storage';
@@ -9,6 +10,7 @@ export function SheetDataNotice(){
   const [write,setWrite]=useState(storage.getBusinessWriteState());
   const [publication,setPublication]=useState(storage.getSheetPublishState());
   useEffect(()=>storage.subscribe(()=>{setState({...storage.getSheetDataState()});setWrite(storage.getBusinessWriteState());setPublication(storage.getSheetPublishState());}),[]);
+  if(storage.usesSupabase)return <SupabaseDataNotice />;
   if(!storage.getSettings().appsScriptUrl)return null;
   const lang=storage.getSettings().language;
   const load=async()=>{

@@ -7,8 +7,11 @@ coverage/
 .env*
 !.env.example
 
-docs/
+docs/*
+!docs/supabase-*.md
 dev-dist/
 
 .openai/
 .aistudio/
+
+supabase/.temp/

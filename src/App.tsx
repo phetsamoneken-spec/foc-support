@@ -1,3 +1,4 @@
+import {SupabaseAdminView} from './views/SupabaseAdminView';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -43,7 +44,7 @@ export default function App() {
   const [selectedTeam, setSelectedTeam] = useState<Team | 'ALL'>('ALL');
   const [navigationOpen, setNavigationOpen] = useState(false);
   const { theme, setTheme } = useDashboardTheme(currentUser?.username || 'guest');
-  const backendUrl=storage.getSettings().appsScriptUrl;
+  const backendUrl=storage.usesSupabase?'supabase':storage.getSettings().appsScriptUrl;
   const sharedTheme=storage.getSettings().dashboardTheme;
   useEffect(()=>{if(sharedTheme)setTheme(sharedTheme);},[currentUser?.id,sharedTheme]);
   useEffect(()=>{if(currentUser?.role!=='ADMIN'&&['settings','users'].includes(currentView))setCurrentView('dashboard');},[currentUser?.role,currentView]);
@@ -197,11 +198,11 @@ export default function App() {
           )}
 
           {currentView === 'users' && isAdmin && (
-            <UsersView />
+            storage.usesSupabase ? <SupabaseAdminView view="users" /> : <UsersView />
           )}
 
           {currentView === 'settings' && isAdmin && (
-            <SettingsView
+            storage.usesSupabase ? <SupabaseAdminView view="settings" /> : <SettingsView
               theme={theme}
               onThemeChange={setTheme}
               onOpenGasDocs={() => setShowGasDocsModal(true)}
