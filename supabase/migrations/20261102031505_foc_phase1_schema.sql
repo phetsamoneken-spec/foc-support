@@ -229,7 +229,7 @@ begin
  else
  if c.code is null or not mkt_private.can_access(c.team,false) or c.status='DELETED' then raise exception 'Customer unavailable' using errcode='42501'; end if;
  scope=c.team; before_data=to_jsonb(c);
- if p_expected is distinct from c.version then raise exception 'Version conflict' using errcode='40001'; end if;
+ if p_expected is distinct from c.version then raise exception 'Version conflict' using errcode='PT409'; end if;
  if p_data ? 'team' and (p_data->>'team') is distinct from scope then raise exception 'Team reassignment requires separate migration' using errcode='42501'; end if;
  if p_kind='EDIT_CUSTOMER' then
  update public.mkt_customers set name=coalesce(p_data->>'name',name),phone=coalesce(p_data->>'phone',phone),address=coalesce(p_data->>'address',address),province=coalesce(p_data->>'province',province),contact_person=coalesce(p_data->>'contact_person',contact_person),updated_at=now(),version=version+1 where code=target;
@@ -254,7 +254,7 @@ begin
  if actor.role<>'ADMIN' then raise exception 'Admin required for condition changes' using errcode='42501'; end if;
  if exists(select 1 from public.mkt_customer_conditions where id=target and customer_code<>c.code) then raise exception 'Condition unavailable' using errcode='42501'; end if;
  select to_jsonb(x) into before_data from public.mkt_customer_conditions x where id=target;
- if before_data is not null and p_expected is distinct from (before_data->>'version')::bigint then raise exception 'Version conflict' using errcode='40001'; end if;
+ if before_data is not null and p_expected is distinct from (before_data->>'version')::bigint then raise exception 'Version conflict' using errcode='PT409'; end if;
  insert into public.mkt_customer_conditions(id,customer_code,team,condition_quantity,condition_uom,condition_product_description,price_per_unit)
  values(target,c.code,scope,(p_data->>'condition_quantity')::numeric,p_data->>'condition_uom',p_data->>'condition_product_description',(p_data->>'price_per_unit')::numeric)
  on conflict(id) do update set condition_quantity=excluded.condition_quantity,condition_uom=excluded.condition_uom,condition_product_description=excluded.condition_product_description,price_per_unit=excluded.price_per_unit,updated_at=now(),version=mkt_customer_conditions.version+1;
@@ -268,12 +268,12 @@ begin
  amount=(p_data->>'annual_amount')::numeric;
  if amount<>round(amount,2) then raise exception 'Money must have <=2 decimal places'; end if;
  if b.id is null then
- if p_expected is not null then raise exception 'Expected new budget' using errcode='40001'; end if;
+ if p_expected is not null then raise exception 'Expected new budget' using errcode='PT409'; end if;
  insert into public.mkt_budgets(id,contract_id,customer_code,team,annual_amount,period_number,period_start,period_end)
  values(target,ct.id,c.code,scope,amount,n,s,e);
  else
  if target is distinct from b.id then raise exception 'Budget ID mismatch'; end if;
- if p_expected is distinct from b.version then raise exception 'Version conflict' using errcode='40001'; end if;
+ if p_expected is distinct from b.version then raise exception 'Version conflict' using errcode='PT409'; end if;
  before_data=to_jsonb(b);
  update public.mkt_budgets set annual_amount=amount,version=version+1,updated_at=now() where id=b.id;
  end if;
@@ -297,7 +297,7 @@ begin
  if c.status='DELETED' then raise exception 'Deleted customer'; end if;
  select * into b from public.mkt_budgets where id=b.id for update;
  scope=b.team; target=p_data->>'id';
- if p_expected is distinct from b.version then raise exception 'Version conflict' using errcode='40001'; end if;
+ if p_expected is distinct from b.version then raise exception 'Version conflict' using errcode='PT409'; end if;
  if p_data ? 'team' and (p_data->>'team') is distinct from b.team
  or p_data ? 'contract_id' and (p_data->>'contract_id') is distinct from b.contract_id
  or p_data ? 'customer_code' and (p_data->>'customer_code') is distinct from b.customer_code then raise exception 'Relationship mismatch' using errcode='42501'; end if;

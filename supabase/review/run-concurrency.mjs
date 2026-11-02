@@ -61,14 +61,14 @@ try{
  const edit=await seed('edit');
  await actor(a);await actor(b);
  await query(a,'SAVE_BUDGET',{...edit,annual_amount:110},randomUUID(),1);
- const loser=expectCode(query(b,'SAVE_BUDGET',{...edit,annual_amount:120},randomUUID(),1),'40001');
+ const loser=expectCode(query(b,'SAVE_BUDGET',{...edit,annual_amount:120},randomUUID(),1),'PT409');
  await waitForLock(owner,pidB);await a.query('commit');await loser;await b.query('rollback');
  assert.equal((await owner.query('select annual_amount::text,version::text from public.mkt_budgets where id=$1',[edit.id])).rows[0].annual_amount,'110.00');
  pass('competing budget edits block then reject stale version');
  const spend=await seed('spend');
  const expense={id:'spend-A',budget_id:spend.id,date:'2024-03-01',category:'Other',description:'Synthetic',amount:60};
  await actor(a);await actor(b);await query(a,'ADD_TRANSACTION',expense,randomUUID(),1);
- const over=expectCode(query(b,'ADD_TRANSACTION',{...expense,id:'spend-B'},randomUUID(),1),'40001');
+ const over=expectCode(query(b,'ADD_TRANSACTION',{...expense,id:'spend-B'},randomUUID(),1),'PT409');
  await waitForLock(owner,pidB);await a.query('commit');await over;await b.query('rollback');
  await actor(b);await expectCode(query(b,'ADD_TRANSACTION',{...expense,id:'spend-B'},randomUUID(),2),'P0001');await b.query('rollback');
  assert.equal((await owner.query('select total_used::text from public.mkt_budget_totals where id=$1',[spend.id])).rows[0].total_used,'60.00');
@@ -86,7 +86,7 @@ try{
  pass('receipt replay rejects changed actor or payload');
  await actor(a);await actor(b);const cancelData={id:'retry-TX',reason:'Synthetic cancellation'};
  await query(a,'CANCEL_TRANSACTION',cancelData,randomUUID(),2);
- const cancelLoser=expectCode(query(b,'CANCEL_TRANSACTION',cancelData,randomUUID(),2),'40001');
+ const cancelLoser=expectCode(query(b,'CANCEL_TRANSACTION',cancelData,randomUUID(),2),'PT409');
  await waitForLock(owner,pidB);await a.query('commit');await cancelLoser;await b.query('rollback');
  await actor(b);await expectCode(query(b,'CANCEL_TRANSACTION',cancelData,randomUUID(),3),'P0001');await b.query('rollback');
  assert.equal((await owner.query('select total_used::text from public.mkt_budget_totals where id=$1',[retry.id])).rows[0].total_used,'0.00');

@@ -56,7 +56,7 @@ select public.mkt_mutate('SAVE_BUDGET',
 -- Keep this transaction open while B submits its call.
 ```
 
-In B submit the same data with amount 120, operation `bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb`, expected version 1. B must wait for A's parent lock. Commit A; B must then raise SQLSTATE 40001. Roll back B, read version 2 / amount 110, and explicitly retry B with a **new** operation and version 2 if desired.
+In B submit the same data with amount 120, operation `bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb`, expected version 1. B must wait for A's parent lock. Commit A; B must then raise SQLSTATE PT409. Roll back B, read version 2 / amount 110, and explicitly retry B with a **new** operation and version 2 if desired.
 
 Repeat with two ADD_TRANSACTION operations against the same remaining amount: at most one initially commits; the other conflicts, then a reviewed retry must reject overspending if no Admin exception exists. Repeat concurrent CANCEL_TRANSACTION against the same transaction: one succeeds, the other conflicts/already-cancelled; total excludes that transaction exactly once. Repeat same operation UUID concurrently: exactly one audit/receipt/transaction, both callers receive identical result after A commits. Change actor/payload under the same UUID: reject 22023. Finally test disabling the profile/session in a separate privileged connection while a write is in flight, and document transaction boundary/cleanup timing. Inspect deadlocks, row locks and audit integrity; do not assume these outcomes from the single-connection harness.
 
