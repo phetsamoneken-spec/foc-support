@@ -1,3 +1,4 @@
+import {annualPeriods,businessToday} from '../services/annualBudgets';
 import React, { useState } from 'react';
 import {
   Wallet,
@@ -47,22 +48,28 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
   const pricePerCrate = settings.pricePerCrate || 240000;
   const [editingBudget, setEditingBudget] = useState<{
     budgetId: string;
+    contractId?:string;
+    periodNumber?:number;
     customerName: string;
     currentAmount: number;
     newAmount: number;
     notes: string;
   } | null>(null);
 
+  const [selectedPeriods,setSelectedPeriods]=useState<Record<string,number>>({});
   const rawCustomers = storage.getCustomers(selectedTeam, searchTerm);
 
   const dataList = rawCustomers.map((c) => {
     const contract = storage.getActiveContract(c.code);
-    const budget = storage.getBudgetForCustomer(c.code);
+    const currentBudget = storage.getBudgetForCustomer(c.code);
+    const periodNumber=selectedPeriods[c.code]||currentBudget?.periodNumber||(contract?annualPeriods(contract).find(p=>businessToday()>=p.periodStart&&businessToday()<=p.periodEnd)?.periodNumber:undefined)||1;
+    const budget=storage.usesSupabase&&contract?storage.getContractBudgets(contract.id).find(b=>b.periodNumber===periodNumber):currentBudget;
     const condition = storage.getCustomerCondition(c.code);
     return {
       customer: c,
       contract,
       budget,
+      periodNumber,
       condition
     };
   });
@@ -77,7 +84,7 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
     e.preventDefault();
     if (!editingBudget||isSaving) return;
     setIsSaving(true);
-    const res = await storage.commitBusinessChange('UPDATE_BUDGET',{budgetId:editingBudget.budgetId,newAmount:editingBudget.newAmount,notes:editingBudget.notes});
+    const res = await storage.commitBusinessChange(editingBudget.budgetId?'UPDATE_BUDGET':'CREATE_BUDGET',{budgetId:editingBudget.budgetId,contractId:editingBudget.contractId,periodNumber:editingBudget.periodNumber,newAmount:editingBudget.newAmount,notes:editingBudget.notes});
     setIsSaving(false);
     if (res.success) {
       setEditingBudget(null);
@@ -138,14 +145,14 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
             </span>
           </h2>
           <p className="text-xs text-slate-500">
-            {lang === 'lo'
+            {storage.usesSupabase?(lang==='lo'?'Admin ກຳນົດງົບເລີ່ມຕົ້ນ; ແຕ່ລະທີມແກ້ງົບຂອງຕົນເອງໄດ້':'Admin initializes each annual period; teams edit their own budgets'):lang === 'lo'
               ? 'ຕິດຕາມການນຳໃຊ້ງົບປະມານ (ລັງລະ ' + storage.formatCurrency(pricePerCrate) + '), ເປີເຊັນການໃຊ້, ຍອດຍັງເຫຼືອ ແລະ ແຈ້ງເຕືອນ 80% / 100%'
               : 'Monitor annual budget allowances (' + storage.formatCurrency(pricePerCrate) + '/crate formula), burn rate, and warnings'}
           </p>
         </div>
 
         {/* Quick Beer Crate Price Pill */}
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/90 px-3 py-1.5 rounded-xl shadow-2xs">
+        {!storage.usesSupabase&&<div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/90 px-3 py-1.5 rounded-xl shadow-2xs">
           <Package className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <div className="text-xs">
             <span className="text-slate-500 font-medium">{lang === 'lo' ? 'ລາຄາເບຍ:' : 'Beer Crate:'} </span>
@@ -163,7 +170,7 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
               {lang === 'lo' ? 'ແກ້ໄຂລາຄາ' : 'Edit'}
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Toast Feedback */}
@@ -289,6 +296,12 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
                   <div>{getStatusBadge(budget?.status, utilRate)}</div>
                 </div>
 
+                {storage.usesSupabase&&contract&&<label className="mt-3 block text-xs">{lang==='lo'?'ເລືອກງົບປີທີ':'Annual period'}
+                  <select className="mt-1 w-full rounded-lg border p-2" value={item.periodNumber} onChange={e=>setSelectedPeriods(p=>({...p,[item.customer.code]:Number(e.target.value)}))}>
+                    {annualPeriods(contract).map(period=><option key={period.periodNumber} value={period.periodNumber}>{period.periodNumber}: {period.periodStart} → {period.periodEnd}</option>)}
+                  </select>
+                </label>}
+                {storage.usesSupabase&&!budget&&<p className="mt-2 text-sm text-amber-800">{lang==='lo'?'ຍັງບໍ່ໄດ້ກຳນົດງົບ':'Budget has not been initialized'}</p>}
                 {budget?.periodStart && <p className="mt-2 text-xs text-blue-700">{lang==='lo'?'ງົບປີທີ':'Budget year'} {budget.periodNumber}: {budget.periodStart} → {budget.periodEnd}</p>}
                 {/* Contract cycle dates */}
                 <div className="mt-3 text-xs text-slate-500 bg-slate-50 p-2 rounded-xl flex items-center justify-between">
@@ -303,9 +316,9 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
                   <div className="bg-slate-50 p-2 rounded-xl">
                     <p className="text-[10px] text-slate-500 font-semibold">{t.annualBudget}</p>
                     <p className="text-xs font-bold text-slate-900 truncate mt-0.5">
-                      {storage.formatCurrency(budget?.annualAmount || 0)}
+                      {storage.usesSupabase&&!budget?'—':storage.formatCurrency(budget?.annualAmount || 0)}
                     </p>
-                    {item.condition?.conditionQuantity ? (
+                    {!storage.usesSupabase&&item.condition?.conditionQuantity ? (
                       <span className="text-[9px] text-blue-600 block font-semibold mt-0.5">
                         {item.condition.conditionQuantity.toLocaleString()} ລັງ × {storage.formatCurrency(pricePerCrate)}
                       </span>
@@ -314,13 +327,13 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
                   <div className="bg-slate-50 p-2 rounded-xl">
                     <p className="text-[10px] text-slate-500 font-semibold">{t.budgetUsed}</p>
                     <p className="text-xs font-bold text-amber-600 truncate mt-0.5">
-                      {storage.formatCurrency(budget?.totalUsed || 0)}
+                      {storage.usesSupabase&&!budget?'—':storage.formatCurrency(budget?.totalUsed || 0)}
                     </p>
                   </div>
                   <div className={`p-2 rounded-xl ${isOverBudget ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
                     <p className="text-[10px] font-semibold">{t.remainingBudget}</p>
                     <p className="text-xs font-black truncate mt-0.5">
-                      {storage.formatCurrency(budget?.remainingAmount || 0)}
+                      {storage.usesSupabase&&!budget?'—':storage.formatCurrency(budget?.remainingAmount || 0)}
                     </p>
                   </div>
                 </div>
@@ -352,7 +365,8 @@ export const BudgetManagementView: React.FC<BudgetManagementViewProps> = ({
                   <span>{t.newTransaction}</span>
                 </button>
 
-                {isAdmin && budget && (
+                {storage.usesSupabase&&isAdmin&&contract&&!budget&&<button className="rounded-xl border px-3 py-2 text-xs font-bold text-blue-700" onClick={()=>setEditingBudget({budgetId:'',contractId:contract.id,periodNumber:item.periodNumber,customerName:item.customer.name,currentAmount:0,newAmount:0,notes:''})}>{lang==='lo'?'ກຳນົດງົບ':'Initialize budget'}</button>}
+                {budget && (isAdmin || storage.usesSupabase&&currentUser?.team===budget.team) && (
                   <button
                     onClick={() =>
                       setEditingBudget({

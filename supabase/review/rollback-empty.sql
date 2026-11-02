@@ -7,6 +7,8 @@ do $$ declare t text; n bigint; begin
  if n<>0 then raise exception 'Refuse populated rollback: %',t; end if;
  end loop;
 end $$;
+drop function if exists public.mkt_batch(jsonb);
+drop function if exists public.mkt_snapshot();
 drop function public.mkt_mutate(text,jsonb,uuid,bigint);
 drop function mkt_private.mutate(text,jsonb,uuid,bigint);
 drop view public.mkt_budget_totals;

@@ -42,8 +42,10 @@ try{
  assert.equal(files.length,1);
  const migration=await readFile(new URL('migrations/'+files[0],base),'utf8');
  await owner.query(migration);await owner.query(migration);pass('schema apply and replay on native PostgreSQL');
+ await owner.query(await readFile(new URL('migrations/20261102052545_foc_frontend_boundary.sql',base),'utf8'));
  await owner.query(await readFile(new URL('tests/phase1-regression.sql',base),'utf8'));
  await owner.query(await readFile(new URL('tests/phase1-workflows.sql',base),'utf8'));pass('170 SQL regression/workflow assertions on native PostgreSQL');
+ await owner.query(await readFile(new URL('tests/frontend-boundary.sql',base),'utf8'));pass('22 frontend snapshot/batch assertions on native PostgreSQL');
  // Fresh fixture identities: no real passwords, emails or customer data.
  for(const i of [0,1,2]){
   await owner.query('insert into auth.users(id) values($1)',[uid(i)]);

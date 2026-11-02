@@ -26,6 +26,7 @@ try{
  await writeFile(join(dir,'supabase','config.toml'),config);
  const files=(await readdir(new URL('migrations/',base))).filter(f=>f.endsWith('_foc_phase1_schema.sql'));assert.equal(files.length,1);
  await copyFile(new URL('migrations/'+files[0],base),join(dir,'supabase','migrations',files[0]));
+ await copyFile(new URL('migrations/20261102052545_foc_frontend_boundary.sql',base),join(dir,'supabase','migrations','20261102052545_foc_frontend_boundary.sql'));
  // All CLI operations are explicitly local, in a fresh unlinked temporary directory.
  attempted=true;await command(['start','--exclude',exclude]);pass('disposable local Supabase stack started');
  await command(['db','reset','--local','--no-seed']);pass('review migration applied only to disposable local stack');
@@ -92,6 +93,30 @@ try{
  await owner.query('update public.mkt_profiles set is_active=false where id=$1',[b1.id]);
  const disabled=await rpc(b1,'SAVE_BUDGET',budget,randomUUID(),3);assert.equal(disabled.status,403);pass('profile disable blocks existing JWT without refresh');
  await owner.query('update public.mkt_profiles set is_active=true where id=$1',[b1.id]);
+ // Exercise the production adapter, not only hand-written HTTP requests.
+ const {createClient}=await import('@supabase/supabase-js');
+ const {SupabaseRepository}=await import('../../src/services/supabaseRepository.ts');
+ async function adapter(who){
+  const client=createClient(api,status.ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const session=await client.auth.setSession({access_token:who.token,refresh_token:who.refresh});assert.equal(session.error,null);
+  return new SupabaseRepository(api,status.ANON_KEY,client);
+ }
+ for(let i=1;i<=7;i++){
+  const repo=await adapter(identities[i]);const snap=await repo.snapshot();repo.acceptSnapshot(snap);
+  assert.equal(snap.user.team,'B'+i);assert.equal(snap.business.customers.length,1);assert.equal(snap.business.budgets.length,1);assert.equal(snap.business.customers[0].team,'B'+i);
+  assert.throws(()=>repo.operations('CREATE_BUDGET',{contractId:'API-CT'+i,periodNumber:2,newAmount:10},snap.business,snap.user));
+  if(i===7){
+   const commands=repo.operations('UPDATE_BUDGET',{budgetId:'API-BD7',newAmount:'123.45'},snap.business,snap.user);
+   await repo.mutate(commands);await repo.mutate(commands);const next=await repo.snapshot();repo.acceptSnapshot(next);assert.equal(next.business.budgets[0].annualAmount,123.45);assert.equal(next.business.budgets.length,1);
+   assert.equal((await owner.query("select count(*)::int n from public.mkt_operation_receipts where operation_id=$1",[commands[0].p_operation])).rows[0].n,1);
+  }
+  pass('B'+i+' production adapter real Auth snapshot and initial-budget restriction');
+ }
+ const adminRepo=await adapter(admin),adminSnapshot=await adminRepo.snapshot();adminRepo.acceptSnapshot(adminSnapshot);
+ const bundle=adminRepo.operations('ADD_CUSTOMER',{code:'API-BUNDLE',name:'Synthetic bundled customer',team:'B7',conditionQty:1,conditionUOM:'CAS',conditionProductDescription:'Synthetic',commencingOn:'2026-01-01',expiringOn:'2027-12-31',annualBudget:'50.01'},adminSnapshot.business,adminSnapshot.user);
+ await adminRepo.mutate(bundle);await adminRepo.mutate(bundle);
+ const bundled=await adminRepo.snapshot();assert.equal(bundled.business.customers.filter(c=>c.code==='API-BUNDLE').length,1);assert.equal(bundled.business.budgets.filter(b=>b.customerCode==='API-BUNDLE').length,1);assert.equal(bundled.business.budgets.find(b=>b.customerCode==='API-BUNDLE').annualAmount,50.01);
+ pass('Admin production adapter creates customer/condition/contract/initial budget atomically and retries exactly once');
  const logout=await request('/auth/v1/logout?scope=global',{method:'POST',token:b1.token});assert.equal(logout.status,204);
  let revoked;for(let i=0;i<20;i++){revoked=await rpc(b1,'SAVE_BUDGET',budget,randomUUID(),3);if([401,403].includes(revoked.status))break;await pause(100);}
  assert.ok([401,403].includes(revoked.status),'Logged-out token must not allow sensitive writes');
