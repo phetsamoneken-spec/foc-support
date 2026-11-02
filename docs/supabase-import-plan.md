@@ -47,10 +47,14 @@ Compare original total used, cancelled count, transaction count, annual amount, 
 
 ## Rehearsal, cutover and rollback
 
-Run schema, synthetic SQL suite, multi-session conflict tests and actual Auth/PostgREST calls only in separately approved disposable staging. Verify Admin + every B1–B7 can log in; own-team budget creation/edit succeeds; cross-team calls fail. Verify first fresh browser, cached PWA upgrade, offline queue retry, signout, profile disable and session revocation. Compare frontend reports to both sources before any cutover.
+Run schema, synthetic SQL suite, multi-session conflict tests and actual Auth/PostgREST calls only in separately approved disposable staging. Verify Admin + every B1–B7 can log in; Admin initial budget creation and own-team budget edits succeed; team initialization and cross-team edits fail. Verify first fresh browser, cached PWA upgrade, offline queue retry, signout, profile disable and session revocation. Compare frontend reports to both sources before any cutover.
 
 Before cutover require explicit approval of workbook report, financial manifest, enrolled users, adapter parity, backups, admin management paths, test report and maintenance/rollback window. Phase1 does not grant this approval.
 
 Before any Supabase writes after cutover, frontend can revert to GAS using the deployment-approved adapter while preserving recovery snapshots. After Supabase accepts new writes, freeze both sides, export its delta and reconcile it back to GAS using stable operation IDs before rollback; blindly switching back loses work. Retain GAS read access/backups until reconciliation retention is approved. No automatic dual writing.
 
 `supabase/review/rollback-empty.sql` removes only an **empty** draft schema and refuses populated tables. It is not a data rollback. For populated staging restore its verified pre-migration snapshot; for a live system use the signed reconciliation plan. Do not use CASCADE or drop auth.users. No rollback command was run on a hosted project.
+
+## Confirmed budget setup policy
+
+Admin sets new initial annual budgets in the application and may edit all teams. B1–B7 may edit only their own existing budgets; they cannot initialize missing periods or change ownership. Staging amounts remain null/unapproved until Admin supplies explicit amounts. This policy does not approve historical expense amounts, accept legacy usage, or authorize import/cutover.

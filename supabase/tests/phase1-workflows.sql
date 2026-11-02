@@ -73,11 +73,15 @@ select pg_temp.assert_true((select condition_quantity=20 and version=2 from publ
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_CONDITION','{"id": "WF-CND", "customer_code": "WF-C1", "condition_quantity": 10, "condition_uom": "CAS", "condition_product_description": "Synthetic item", "price_per_unit": 5}'::jsonb,'00000000-0000-4000-8000-000000003011',1)$q$,array['PT409']);
 reset role;
 select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","session_id":"00000000-0000-4000-8000-000000000101"}',true);set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-BD", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000003012',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-BD-Y2", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 2, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000003013',null);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","session_id":"00000000-0000-4000-8000-000000000101","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-BD", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 1, "annual_amount": 80}'::jsonb,'00000000-0000-4000-8000-000000003014',1);
 select pg_temp.assert_true((select annual_amount=100 from public.mkt_budgets where id='WF-BD-Y2'),'single-year budget edit preserves next year');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-TOO-LATE", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 99, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000003015',null)$q$,array['23514']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","session_id":"00000000-0000-4000-8000-000000000101"}',true);
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-BD", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 1, "annual_amount": -1}'::jsonb,'00000000-0000-4000-8000-000000003016',2)$q$,array['23514']);
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-BD", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 1, "annual_amount": 10.123}'::jsonb,'00000000-0000-4000-8000-000000003017',2)$q$,array['P0001']);
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "WF-BD", "customer_code": "WF-C1", "contract_id": "WF-CT", "period_number": 1, "annual_amount": null}'::jsonb,'00000000-0000-4000-8000-000000003018',2)$q$,array['23502']);

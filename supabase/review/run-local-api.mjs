@@ -66,10 +66,11 @@ try{
  for(let i=1;i<=7;i++){
   const who=identities[i];const own=await request('/rest/v1/mkt_customers?select=code,team',{token:who.token});assert.equal(own.status,200);assert.equal(own.data.length,1);assert.equal(own.data[0].team,'B'+i);
   const data={id:'API-BD'+i,customer_code:'API-C'+i,contract_id:'API-CT'+i,period_number:1,annual_amount:100};
-  const created=await rpc(who,'SAVE_BUDGET',data);assert.equal(created.status,200,'Own-team API budget create failed');
+  const denied=await rpc(who,'SAVE_BUDGET',data);assert.equal(denied.status,403,'Team must not initialize a budget');assert.equal(denied.data.code,'42501');
+  const created=await rpc(identities[0],'SAVE_BUDGET',data);assert.equal(created.status,200,'Admin initial budget create failed');
   const edited=await rpc(who,'SAVE_BUDGET',{...data,annual_amount:120},randomUUID(),1);assert.equal(edited.status,200,'Own-team API budget edit failed');
   const totals=await request('/rest/v1/mkt_budget_totals?select=id,annual_amount',{token:who.token});assert.equal(totals.status,200);assert.equal(totals.data.length,1);assert.equal(Number(totals.data[0].annual_amount),120);
-  pass('B'+i+' actual JWT scoped reads and budget create/edit');
+  pass('B'+i+' actual JWT scoped reads, Admin-only initialization and own-budget edit');
  }
  const admin=identities[0],b1=identities[1];
  const badJwt=b1.token.split('.');badJwt[2]=(badJwt[2][0]==='A'?'B':'A')+badJwt[2].slice(1);

@@ -13,7 +13,7 @@ The SQL/native PostgreSQL harnesses use Auth/JWT stubs. This follow-up adds `sup
 
 ## Cases
 
-Actual email/password Auth enrollment through the local admin API and sign-in for Admin/B1–B7/inactive profile; public signup denial despite Admin-created users being able to sign in; wrong-password denial; tampered JWT signature rejection; each team's scoped customer/totals reads and budget create/edit RPCs; Admin all-team reads; anonymous denial; forged user_metadata not granting Admin; cross-team reads/writes; direct role/team mutation denial; archive isolation; same-operation retry and changed-payload rejection; stale-version HTTP conflict; active-profile disable against an existing JWT; Auth logout denying sensitive writes and refresh-token reuse.
+Actual email/password Auth enrollment through the local admin API and sign-in for Admin/B1–B7/inactive profile; public signup denial despite Admin-created users being able to sign in; wrong-password denial; tampered JWT signature rejection; each team's scoped customer/totals reads, rejection of initial budget creation, Admin initialization and own-budget edit RPCs; Admin all-team reads; anonymous denial; forged user_metadata not granting Admin; cross-team reads/writes; direct role/team mutation denial; archive isolation; same-operation retry and changed-payload rejection; stale-version HTTP conflict; active-profile disable against an existing JWT; Auth logout denying sensitive writes and refresh-token reuse.
 
 This test does not select the eventual production login UX or implement a username adapter. Password reset/email delivery, hosted SMTP/rate limits, real project configuration and the React adapter remain separate gates.
 

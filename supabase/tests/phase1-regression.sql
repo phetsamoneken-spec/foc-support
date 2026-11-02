@@ -62,9 +62,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B1'),'B1 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B1'),'B1 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-1", "customer_code": "SYN-1", "contract_id": "CT-1", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001001',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-1", "customer_code": "SYN-1", "contract_id": "CT-1", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001001',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-1", "customer_code": "SYN-1", "contract_id": "CT-1", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001001',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B1 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000001","session_id":"00000000-0000-4000-8000-000000000101","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B1 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-1", "customer_code": "SYN-1", "contract_id": "CT-1", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001101',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-1'),'B1 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-1", "customer_code": "SYN-1", "contract_id": "CT-1", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001201',1)$q$,array['PT409']);
@@ -84,9 +87,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B2'),'B2 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B2'),'B2 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-2", "customer_code": "SYN-2", "contract_id": "CT-2", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001002',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-2", "customer_code": "SYN-2", "contract_id": "CT-2", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001002',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-2", "customer_code": "SYN-2", "contract_id": "CT-2", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001002',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B2 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000002","session_id":"00000000-0000-4000-8000-000000000102","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B2 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-2", "customer_code": "SYN-2", "contract_id": "CT-2", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001102',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-2'),'B2 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-2", "customer_code": "SYN-2", "contract_id": "CT-2", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001202',1)$q$,array['PT409']);
@@ -106,9 +112,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B3'),'B3 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B3'),'B3 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-3", "customer_code": "SYN-3", "contract_id": "CT-3", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001003',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-3", "customer_code": "SYN-3", "contract_id": "CT-3", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001003',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-3", "customer_code": "SYN-3", "contract_id": "CT-3", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001003',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B3 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000003","session_id":"00000000-0000-4000-8000-000000000103","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B3 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-3", "customer_code": "SYN-3", "contract_id": "CT-3", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001103',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-3'),'B3 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-3", "customer_code": "SYN-3", "contract_id": "CT-3", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001203',1)$q$,array['PT409']);
@@ -128,9 +137,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B4'),'B4 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B4'),'B4 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-4", "customer_code": "SYN-4", "contract_id": "CT-4", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001004',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-4", "customer_code": "SYN-4", "contract_id": "CT-4", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001004',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-4", "customer_code": "SYN-4", "contract_id": "CT-4", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001004',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B4 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000004","session_id":"00000000-0000-4000-8000-000000000104","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B4 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-4", "customer_code": "SYN-4", "contract_id": "CT-4", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001104',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-4'),'B4 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-4", "customer_code": "SYN-4", "contract_id": "CT-4", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001204',1)$q$,array['PT409']);
@@ -150,9 +162,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B5'),'B5 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B5'),'B5 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-5", "customer_code": "SYN-5", "contract_id": "CT-5", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001005',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-5", "customer_code": "SYN-5", "contract_id": "CT-5", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001005',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-5", "customer_code": "SYN-5", "contract_id": "CT-5", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001005',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B5 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000005","session_id":"00000000-0000-4000-8000-000000000105","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B5 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-5", "customer_code": "SYN-5", "contract_id": "CT-5", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001105',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-5'),'B5 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-5", "customer_code": "SYN-5", "contract_id": "CT-5", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001205',1)$q$,array['PT409']);
@@ -172,9 +187,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B6'),'B6 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B6'),'B6 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-6", "customer_code": "SYN-6", "contract_id": "CT-6", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001006',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-6", "customer_code": "SYN-6", "contract_id": "CT-6", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001006',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-6", "customer_code": "SYN-6", "contract_id": "CT-6", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001006',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B6 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000006","session_id":"00000000-0000-4000-8000-000000000106","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B6 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-6", "customer_code": "SYN-6", "contract_id": "CT-6", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001106',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-6'),'B6 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-6", "customer_code": "SYN-6", "contract_id": "CT-6", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001206',1)$q$,array['PT409']);
@@ -194,9 +212,12 @@ select pg_temp.assert_true(not exists(select 1 from public.mkt_budgets where tea
 select pg_temp.assert_true(not exists(select 1 from public.mkt_transactions where team<>'B7'),'B7 child isolation: mkt_transactions');
 select pg_temp.assert_true(not exists(select 1 from public.mkt_activity_logs where team<>'B7'),'B7 child isolation: mkt_activity_logs');
 select pg_temp.assert_true((select count(*)=0 from public.mkt_legacy_archives),'team archive denied');
+select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-7", "customer_code": "SYN-7", "contract_id": "CT-7", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001007',null)$q$,array['42501']);
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000000","session_id":"00000000-0000-4000-8000-000000000100"}',true);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-7", "customer_code": "SYN-7", "contract_id": "CT-7", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001007',null);
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-7", "customer_code": "SYN-7", "contract_id": "CT-7", "period_number": 1, "annual_amount": 100}'::jsonb,'00000000-0000-4000-8000-000000001007',null); -- exact replay must not duplicate
-select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B7 creates own budget');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-000000000007","session_id":"00000000-0000-4000-8000-000000000107","user_metadata":{"role":"ADMIN","team":"ALL"}}',true);
+select pg_temp.assert_true((select count(*)=1 from public.mkt_budgets),'B7 sees Admin-initialized own budget');
 select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-7", "customer_code": "SYN-7", "contract_id": "CT-7", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001107',1);
 select pg_temp.assert_true((select annual_amount=200 and version=2 from public.mkt_budgets where id='BD-7'),'B7 edits own budget');
 select pg_temp.expect_error($q$select public.mkt_mutate('SAVE_BUDGET','{"id": "BD-7", "customer_code": "SYN-7", "contract_id": "CT-7", "period_number": 1, "annual_amount": 200}'::jsonb,'00000000-0000-4000-8000-000000001207',1)$q$,array['PT409']);

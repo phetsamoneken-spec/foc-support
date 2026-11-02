@@ -268,6 +268,7 @@ begin
  amount=(p_data->>'annual_amount')::numeric;
  if amount<>round(amount,2) then raise exception 'Money must have <=2 decimal places'; end if;
  if b.id is null then
+ if actor.role<>'ADMIN' then raise exception 'Admin required for initial budget creation' using errcode='42501'; end if;
  if p_expected is not null then raise exception 'Expected new budget' using errcode='PT409'; end if;
  insert into public.mkt_budgets(id,contract_id,customer_code,team,annual_amount,period_number,period_start,period_end)
  values(target,ct.id,c.code,scope,amount,n,s,e);

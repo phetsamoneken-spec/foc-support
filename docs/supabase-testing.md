@@ -12,7 +12,7 @@ On audited source commit `73d664de62bece11ff39cdf4fc1e2f09d5f036ac` plus this re
 | `for test_file in tests/*.test.ts; do node --import tsx "$test_file" || exit; done` | PASS; all 15 existing TypeScript test entrypoints |
 | annual-budgets and excel-calendar-date with TZ=Asia/Vientiane and TZ=America/Los_Angeles | PASS in both timezones |
 | `./node_modules/.bin/vite build` and updated `npm run build` | PASS; PWA output generated; existing >500kB chunk warning |
-| `node supabase/review/run-local.mjs` with PGLITE_MODULE pointing to separately installed PGlite 0.3.14 | PASS: migration, replay, 136 regression + 27 workflow assertions, populated rollback refusal and empty rollback |
+| `node supabase/review/run-local.mjs` with PGLITE_MODULE pointing to separately installed PGlite 0.3.14 | PASS: migration, replay, 143 regression + 27 workflow assertions, populated rollback refusal and empty rollback |
 | `git diff --check` after staging | PASS |
 
 PGlite executes real PostgreSQL SQL/PLpgSQL, row policies, constraints and role changes in a disposable in-memory instance. Its Auth tables/functions in this harness are deliberately **minimal stubs**, not Supabase Auth. No project connection or production credential is used. This verifies more than SQL text inspection, but does not prove hosted Auth, Data API or concurrency correctness.
@@ -30,7 +30,7 @@ PGLITE_MODULE=/tmp/foc-phase1-tools/node_modules/@electric-sql/pglite/dist/index
 
 The harness creates an in-memory database, stubs auth.uid/auth.jwt from trusted test claims, applies the migration twice, executes `supabase/tests/phase1-regression.sql` (fixtures wrapped in ROLLBACK), tests refusal to drop a populated schema, then drops the empty schema. It closes the DB even on error. For a real disposable local Supabase instance, SQL assertions can run as DB owner with SET ROLE privileges, after confirming fixture auth.sessions columns against the installed Auth schema. Never use test claim setters in a real application.
 
-The additional `phase1-workflows.sql` suite checks customer create/edit/delete, immutable team ownership, Admin-only contract/condition management, overlap rejection, condition versions, single-year budget edits, invalid/missing money, approved overspending and deletion history/receipts. The local harness runs both suites (163 assertions total).
+The additional `phase1-workflows.sql` suite checks customer create/edit/delete, immutable team ownership, Admin-only contract/condition management, overlap rejection, condition versions, single-year budget edits, invalid/missing money, approved overspending and deletion history/receipts. The local harness runs both suites (170 assertions total).
 
 Assertions include each B1–B7's own customer and child read isolation; own budget create/edit; cross-team parent/contract mismatch; direct insert/update and role elevation rejection; forged user_metadata; server-owned financial payload rejection; inactive profiles; stale JWT after disable; missing Auth session; anon denial; operation replay and changed-request rejection; stale-version conflicts; leap anniversary; transaction date/FK/overbudget validation; cancellation exactly once; SQL text treated as data; Admin all-team access; audit/receipt counts; all proposed public tables RLS; no public SECURITY DEFINER functions.
 

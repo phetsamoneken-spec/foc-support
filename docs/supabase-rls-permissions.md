@@ -8,7 +8,7 @@ R = scoped read; C/U = create/update via `public.mkt_mutate`; soft D = status/to
 | mkt_customers | R/C/U/soft D all | R/C/U/soft D own | CREATE_CUSTOMER / EDIT_CUSTOMER / DELETE_CUSTOMER; version required; team immutable |
 | mkt_customer_conditions | R/C/U all | R own | SAVE_CONDITION Admin-only; derive team from parent |
 | mkt_contracts | R/C all | R own | CREATE_CONTRACT Admin-only; no overlaps, sequential cycle under parent lock; no date update/delete RPC |
-| mkt_budgets | R/C/U all | R/C/U own | SAVE_BUDGET derives period bounds, scoped parent, unique contract/year, optimistic version; cannot write usage |
+| mkt_budgets | R/C/U all | R/U own | SAVE_BUDGET derives period bounds, scoped parent, unique contract/year, optimistic version; cannot write usage |
 | mkt_transactions | R/C/cancel all | R/C/cancel own | ADD_TRANSACTION / CANCEL_TRANSACTION; budget lock and version; date/FK validation; no amount edits or deletes |
 | mkt_budget_totals view | R all | R own | security_invoker; sum ACTIVE transactions + imported undated usage |
 | mkt_activity_logs | R all | R own team | Server-only append in same atomic RPC; legacy logs imported separately |
@@ -30,7 +30,7 @@ Sensitive writes require a matching `auth.sessions` row from the JWT session_id 
 
 Each mutation locks its operation ID; only the same actor and identical request may replay a receipt. Mutations then lock customer → contract/budget → transaction as relevant. One committed operation yields one immutable audit entry and receipt. Failed operations roll back all changes. Versions reject lost updates; receipt checking occurs before version checking so a lost-response retry succeeds. Transaction addition/cancellation bumps budget version and recomputes totals through the view, preventing cancellation double subtraction. True competing-connection behavior now passes in the disposable native PostgreSQL 17.11 CI harness; hosted Auth/PostgREST validation remains separate. See `docs/supabase-ci-results.md`.
 
-All provided monetary amounts are decimal, limited to 2 fractional digits. Budget creation needs a contract/customer/period and text ID, derives team, and never accepts imported unallocated usage. Existing budget edits require its version and matching ID. Team users cannot approve exceptions, alter derived totals, or change ownership. Budget edits affect **one** period; historical rows and usage remain intact.
+All provided monetary amounts are decimal, limited to 2 fractional digits. Budget creation is Admin-only and needs a contract/customer/period and text ID, derives team, and never accepts imported unallocated usage. Admin may edit every team; B1–B7 may edit only their own existing budgets. Existing budget edits require its version and matching ID. Team users cannot approve exceptions, alter derived totals, or change ownership. Budget edits affect **one** period; historical rows and usage remain intact.
 
 ## Privileged paths that are deliberately not implemented in Phase 1
 

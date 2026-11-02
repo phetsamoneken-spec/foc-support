@@ -27,3 +27,7 @@ Outputs: manifest, customer/condition/contract/annual-period candidates, exclude
 `node supabase/tests/staging-plan.test.mjs` covers twelve synthetic scenarios: preserving real workbook identity while excluding seed expenses, refusing seed money carryover, shared leap-date bounds and original IDs, tombstone retention, required owner clarification, duplicate IDs, invalid teams/dates, conflicting source versions, ambiguous contracts, explicit parent/team blockers and transaction relationship/period exceptions and range-bound violations.
 
 The private package is a review artifact based on a dated observation, not a fresh/atomic source export and not a production-ready migration dataset.
+
+## Confirmed budget setup policy
+
+Admin sets new initial annual budgets in the application and may edit all teams. B1–B7 may edit only their own existing budgets; they cannot initialize missing periods or change ownership. Staging amounts remain null/unapproved until Admin supplies explicit amounts. This policy does not approve historical expense amounts, accept legacy usage, or authorize import/cutover.
