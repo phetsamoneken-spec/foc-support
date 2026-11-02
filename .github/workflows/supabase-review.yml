@@ -33,6 +33,7 @@ jobs:
         run: |
           npm run lint
           node supabase/tests/reconcile-finances.test.mjs
+          node supabase/tests/staging-plan.test.mjs
           node tests/gas-sync.test.cjs
           for test_file in tests/*.test.ts; do node --import tsx "$test_file" || exit; done
           TZ=Asia/Vientiane node --import tsx tests/annual-budgets.test.ts
