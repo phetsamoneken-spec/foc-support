@@ -1,3 +1,5 @@
+ອັບເດດ 2026-11-02: ເພີ່ມ frontend adapter ແລ້ວ ແລະນຳ schema ເຂົ້າ Supabase Foc support ສຳເລັດ. ກວດ 13 RLS tables, ບໍ່ມີ direct budget writes ຫຼື anonymous RPC grants ແລະ Security Advisor ບໍ່ພົບ findings. CI ຜ່ານ SQL 192 assertions, native checks 9 ແລະ real local Auth/REST 31 ລາຍການ. ຍັງບໍ່ມີ Auth users/profiles ແລະບໍ່ໄດ້ import ຂໍ້ມູນຈິງ, Merge ຫຼື Deploy. ເບິ່ງ `docs/supabase-frontend-integration.md`; ຂໍ້ຄວາມ Phase 1 ດ້ານລຸ່ມເປັນປະຫວັດການກວດກ່ອນ integration.
+
 # ລາຍງານ Supabase Phase 1 — REVIEW ONLY
 
 ກວດ repository ຈາກ commit `73d664de62bece11ff39cdf4fc1e2f09d5f036ac` ແລະກຽມ branch `feature/supabase-phase1-schema-rls-review`.

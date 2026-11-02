@@ -1,6 +1,6 @@
 # Supabase frontend connection
 
-The integration uses the existing `Foc support` project, `itenbxivivbffsjvhduh`. The project was healthy but had no public tables or Auth users when inspected on 2026-11-02. The initial hosted migration confirmation expired; no successful hosted application is claimed. Apply both reviewed migrations together in dependency order, then verify grants/advisors and account access before publishing the frontend.
+The integration uses the existing `Foc support` project, `itenbxivivbffsjvhduh`. The project was healthy but had no public tables or Auth users when inspected on 2026-11-02. Both reviewed migrations were subsequently applied successfully on 2026-11-02 after renewed confirmation. Verification found 13 business tables with RLS enabled, anonymous RPC execution denied, authenticated direct budget writes denied, and no Security Advisor findings. Auth users, profiles, customers, budgets and transactions are still empty. Account acceptance remains required before publishing the frontend.
 
 ## Implemented
 
@@ -15,7 +15,7 @@ The integration uses the existing `Foc support` project, `itenbxivivbffsjvhduh`.
 
 ## Before deploy
 
-1. Apply `20261102031505_foc_phase1_schema.sql`, then `20261102052545_foc_frontend_boundary.sql`, to the identified empty project. Check migration history, all 13 RLS tables, wrapper grants and security advisors. Do not run synthetic regression fixtures on the hosted project.
+1. Hosted schema/grant/security verification is complete. The connector recorded `foc_phase1_schema` as version `20261102104421` and `foc_frontend_boundary` as `20261102104433`; these map to local source files `20261102031505_foc_phase1_schema.sql` and `20261102052545_foc_frontend_boundary.sql`. Reconcile this history before any future CLI db push; do not assume matching numeric versions or replay migrations blindly. Do not run synthetic regression fixtures on the hosted project.
 2. Provision the owner's verified Admin email through Supabase Auth and map its returned Auth UUID to an active ADMIN/ALL profile. Each B1–B7 user needs a verified email/Auth identity and explicit TEAM_USER/Bn profile. Never infer authorization from user metadata or copy GAS password hashes. Do not send invitations without explicit recipient authorization; passwords should be set directly in Auth, not in chat.
 3. Configure Auth signup/recovery/site URL policies and verify real account login. There are currently no owner accounts to use for this acceptance step.
 4. Decide whether to begin with an empty database or approve a separately reconciled private import. The existing private staging package remains unapproved and must not be loaded automatically. Source authority, financial exceptions, tombstones and browser outboxes remain migration gates.
@@ -23,6 +23,6 @@ The integration uses the existing `Foc support` project, `itenbxivivbffsjvhduh`.
 
 ## Validation
 
-Local lint, production Supabase build, existing GAS regression suites and adapter tests pass. In-memory SQL executes 143 regression + 27 workflow + 22 snapshot/batch assertions, migration replay and both rollback guards. The actual local Auth CI now exercises the production TypeScript repository with each team's real JWT and an Admin atomic customer/contract/condition/initial-budget bundle, including unchanged receipt retries. Hosted Auth, browser acceptance and live cutover are separate checks.
+Local lint, production Supabase build, existing GAS regression suites and adapter tests pass. In-memory SQL executes 143 regression + 27 workflow + 22 snapshot/batch assertions, migration replay and both rollback guards. [CI run 41430901635](https://github.com/phetsamoneken-spec/foc-support/actions/runs/41430901635) passed both jobs for commit `ebf8c99c93b08339a9f6f76a04e9e7070eb2ab89`. Its 31 actual local Auth/REST checks exercise the production TypeScript repository with each team's real JWT and an Admin atomic customer/contract/condition/initial-budget bundle, including unchanged receipt retries. Hosted Auth, browser acceptance and live cutover are separate checks.
 
 Run `node --import tsx tests/supabase-adapter.test.ts` for money, scoped command/version mapping, legacy-cache isolation, no local financial success, exact retry, conflict refresh and logout-race tests. `node --import tsx supabase/review/run-local-api.mjs` requires an isolated local Docker stack and the locked review dependencies; it never accepts hosted credentials or source data.
