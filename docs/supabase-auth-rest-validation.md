@@ -13,7 +13,7 @@ The SQL/native PostgreSQL harnesses use Auth/JWT stubs. This follow-up adds `sup
 
 ## Cases
 
-Actual email/password Auth enrollment through the local admin API and sign-in for Admin/B1–B7/inactive profile; wrong-password denial; each team's scoped customer/totals reads and budget create/edit RPCs; Admin all-team reads; anonymous denial; forged user_metadata not granting Admin; cross-team reads/writes; direct role/team mutation denial; archive isolation; same-operation retry and changed-payload rejection; stale-version HTTP conflict; active-profile disable against an existing JWT; Auth logout denying sensitive writes and refresh-token reuse.
+Actual email/password Auth enrollment through the local admin API and sign-in for Admin/B1–B7/inactive profile; public signup denial despite Admin-created users being able to sign in; wrong-password denial; tampered JWT signature rejection; each team's scoped customer/totals reads and budget create/edit RPCs; Admin all-team reads; anonymous denial; forged user_metadata not granting Admin; cross-team reads/writes; direct role/team mutation denial; archive isolation; same-operation retry and changed-payload rejection; stale-version HTTP conflict; active-profile disable against an existing JWT; Auth logout denying sensitive writes and refresh-token reuse.
 
 This test does not select the eventual production login UX or implement a username adapter. Password reset/email delivery, hosted SMTP/rate limits, real project configuration and the React adapter remain separate gates.
 
@@ -31,4 +31,4 @@ References verified 2026-11-02:
 - [Password sign-in](https://supabase.com/docs/reference/javascript/auth-signinwithpassword)
 - [Admin user creation](https://supabase.com/docs/reference/javascript/auth-admin-createuser)
 
-Before CI completes this new HTTP suite is **NOT RUN**; only syntax, SQL and synthetic reconciliation checks have run in the managed workspace, which has no Docker daemon. Record the actual CI result and tested commit before claiming a pass. Hosted project mutations remain prohibited by this review scope.
+CI [run 41387457643](https://github.com/phetsamoneken-spec/foc-support/actions/runs/41387457643), commit `44a997edcd77c475c3175064b68360ec1b9f5d0b`, passed 21 real local Auth/PostgREST checks, including actual session logout and PT409 → HTTP 409. The source workspace has no Docker daemon; this evidence comes from isolated CI. Two additional public-signup/tampered-signature assertions are added in the current follow-up and must pass the next CI run before being counted. Hosted project validation and mutations remain outside this review scope.

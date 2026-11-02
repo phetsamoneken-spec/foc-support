@@ -36,7 +36,7 @@ Assertions include each B1–B7's own customer and child read isolation; own bud
 
 ## Remaining validation before cutover
 
-- Real Supabase Auth enroll/login/reset/refresh/signout, user disable/role change under real JWTs, session cleanup behavior, HTTP rate limits and enrollment adapter.
+- Owner-hosted Auth configuration, password-reset/email delivery, hosted rate limits, full session policies and the enrollment adapter remain unverified. Actual local GoTrue sign-in, signed-JWT scope, profile disable and logout/refresh denial now pass in CI; see `docs/supabase-auth-rest-validation.md`.
 - PostgREST/GraphQL schema exposure and explicit grants on actual hosted version; REST RPC responses/SQLSTATE mapping; actual policies via platform advisors.
 - Native multi-connection tests now PASS in CI on PostgreSQL 17.11; see `docs/supabase-ci-results.md`. PGlite alone remains a single-connection harness and is not the concurrency evidence.
 - Workbook structural validation is now complete (578 rows); live-source monetary reconciliation, historical exceptions and privileged Admin config/account/import services remain NOT RUN.
@@ -80,3 +80,7 @@ node supabase/review/run-concurrency.mjs
 The native package version is a pinned beta distribution of PostgreSQL binaries; it is test-only and never used by the application or a production DB.
 
 The first review CI run completed successfully on commit `145ae9e277afb694984b92ed0860d484c8af308d`. The native runner executed all 163 SQL assertions and observed real competing-connection lock waits. This supersedes the initial unexecuted concurrency procedure status, while leaving hosted Auth/PostgREST and live data reconciliation untested.
+
+## Selected-field financial analysis
+
+`node supabase/tests/reconcile-finances.test.mjs` passes ten synthetic scenarios without accessing private data. Real selected-field source reports are delivered privately and never committed. Source routing/copy provenance must be checked before selecting authority; read-only Sheet observations must not be confused with a cutover-ready dataset.

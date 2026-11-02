@@ -29,3 +29,5 @@ Lint ຜ່ານ; GAS tests 31 ຂໍ້ ແລະ TS test files 15 ໄຟລ�
 **ບໍ່ໄດ້ປ່ຽນ Supabase Database, GitHub main ຫຼື deployment.** ແອັບຈິງຍັງໃຊ້ GAS ຄືເກົ່າ. ສະຖານະ Draft PR ຈະຢູ່ໃນຄຳຕອບສົ່ງມອບພ້ອມລິ້ງ; ບໍ່ Merge.
 
 Follow-up: ເພີ່ມ workflow tests 27 ຂໍ້, read-only workbook audit script, native concurrency runner ແລະ review-only CI. Native runner ຮັນບໍ່ໄດ້ໃນເຄື່ອງນີ້ເພາະ root-only, ແຕ່ CI ຜ່ານແລ້ວເທິງ PostgreSQL 17.11: SQL 163 assertions ແລະ native checks 9 ລາຍການ. ເບິ່ງ `docs/supabase-ci-results.md`. ບໍ່ໄດ້ປ່ຽນ migration schema ຫຼືໂຄດ frontend/GAS ໃນ follow-up ນີ້.
+
+Auth/REST follow-up: CI ຜ່ານ actual local GoTrue/PostgREST 21 ລາຍການ ດ້ວຍ JWT/session ຈິງໃນ stack ຊົ່ວຄາວ. Hosted project ຂອງເຈົ້າຂອງຍັງ NOT RUN. ໄດ້ທຽບ selected financial fields ແບບ read-only ແລ້ວ; ລາຍລະອຽດສົ່ງແບບ private, ຍັງມີ source-selection ແລະຍອດ/relationship exceptions ທີ່ຕ້ອງແກ້ກ່ອນ import. ປ່ຽນ business version conflict ເປັນ PT409 ເພື່ອຕອບ HTTP 409 ໂດຍບໍ່ໃຊ້ serialization retry code.

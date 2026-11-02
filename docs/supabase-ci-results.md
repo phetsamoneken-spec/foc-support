@@ -28,3 +28,9 @@ The local managed workspace cannot run a native PostgreSQL daemon because it has
 The source workbook audit is separate and private; CI has no workbook bytes. Only aggregate data-quality evidence is committed. Monetary budgets and live financial reconciliation, privileged account/config/import management, the frontend adapter and cutover/rollback rehearsal remain outstanding.
 
 No main update, merge, production DB/Auth mutation, live import or deployment was performed.
+
+## Actual local Auth/REST follow-up
+
+[Run 41387457643](https://github.com/phetsamoneken-spec/foc-support/actions/runs/41387457643) passed both jobs for commit `44a997edcd77c475c3175064b68360ec1b9f5d0b`: all SQL/native/regression/build checks plus **21 actual local GoTrue/PostgREST checks**. Unlike the two SQL harnesses, this additional job uses the real local Auth schema, signed JWTs, sessions, gateway and REST API. Owner-hosted Supabase remains untouched and unverified.
+
+The draft migration's application conflict code is now PT409, validated as HTTP 409 through PostgREST. The earlier run above tested its predecessor; current tests no longer raise custom serialization errors for ordinary stale-version conflicts. See `docs/supabase-auth-rest-validation.md`.

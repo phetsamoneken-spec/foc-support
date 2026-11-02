@@ -23,3 +23,9 @@ Cancelled amounts remain in history and do not consume the budget. Annual amount
 ## Remaining gates
 
 The observation is not an atomic export or proof of source authority. Recheck source modification state, take privately verified backups, settle browser outboxes, reconcile every exception and agree historical parent handling before import/cutover. A server journal containing only completed entries does not establish browser cleanliness. No source mutation, live import, hosted SQL, merge or deployment was performed.
+
+## Source selection and read side effects
+
+A Database/Backup title is not proof that it is the active application database. Read migration/routing metadata and compare original/copy IDs and selected records before choosing authority. If the GAS source route is PENDING, `resolvePrimaryDatabase_` can call `activateRoutedDatabase_` during a nominal read/Ping, copying original tables over target and retiring old access. Do not use such an endpoint as a read-only diagnostic while unresolved target-only changes exist. This follow-up inspected Sheets directly and never triggered GAS activation.
+
+Records matching repository seed IDs or selected seed fields are provenance candidates, not proof they are disposable. Retain them for private owner review; do not import unverified demo balances as approved spending or delete altered historical records automatically.

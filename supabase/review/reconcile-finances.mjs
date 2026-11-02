@@ -1,7 +1,7 @@
 /** Pure read-only reconciliation of selected Sheet fields. Input/report are private, never commit them. */
 import { readFile,writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-export function reconcile(parts,{today='2026-11-02',workbookCodes=[]}={}){
+export function reconcile(parts,{today=new Date(Date.now()+7*3600000).toISOString().slice(0,10),workbookCodes=[]}={}){
  const blank=v=>v===undefined||v===null||v==='';
  const text=v=>blank(v)?'':String(v).trim();
  const grid={};

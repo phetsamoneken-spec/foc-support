@@ -51,6 +51,11 @@ try{
   identities.push({id,email,password,token:login.data.access_token,refresh:login.data.refresh_token});
  }
  pass('actual Auth creates and signs in Admin, B1-B7 and inactive-profile fixture');
+ const signup=await request('/auth/v1/signup',{method:'POST',body:{email:'forbidden@example.test',password:'Review-'+randomBytes(24).toString('hex')+'!'}});
+ assert.ok(signup.status>=400&&signup.status<500,'Public signup must remain disabled');
+ assert.equal((await owner.query("select count(*)::int as n from auth.users where email='forbidden@example.test'")).rows[0].n,0);
+ pass('public signup disabled while Admin-created users can sign in');
+
  const bad=await request('/auth/v1/token?grant_type=password',{method:'POST',body:{email:identities[1].email,password:'Invalid-'+randomBytes(16).toString('hex')}});assert.equal(bad.status,400);pass('incorrect password rejected by actual Auth');
  for(let i=1;i<=7;i++){
   await owner.query("insert into public.mkt_customers(code,name,team,mde) values($1,'Synthetic local API customer',$2,$3)",['API-C'+i,'B'+i,'MDE-B'+i]);
@@ -67,6 +72,9 @@ try{
   pass('B'+i+' actual JWT scoped reads and budget create/edit');
  }
  const admin=identities[0],b1=identities[1];
+ const badJwt=b1.token.split('.');badJwt[2]=(badJwt[2][0]==='A'?'B':'A')+badJwt[2].slice(1);
+ const tampered=await request('/rest/v1/mkt_customers?select=code',{token:badJwt.join('.')});assert.equal(tampered.status,401);pass('tampered JWT signature denied by actual REST gateway');
+
  const all=await request('/rest/v1/mkt_customers?select=code',{token:admin.token});assert.equal(all.status,200);assert.equal(all.data.length,7);pass('Admin actual JWT sees all teams');
  const anon=await request('/rest/v1/mkt_customers?select=code');assert.ok([401,403].includes(anon.status));pass('anonymous REST read denied');
  const cross=await request('/rest/v1/mkt_customers?select=code&code=eq.API-C2',{token:b1.token});assert.equal(cross.status,200);assert.deepEqual(cross.data,[]);
