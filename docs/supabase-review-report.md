@@ -16,7 +16,7 @@
 
 Lint ຜ່ານ; GAS tests 31 ຂໍ້ ແລະ TS test files 15 ໄຟລ໌ຜ່ານ; ກວດວັນທີສອງ timezone ຜ່ານ; build ຜ່ານ (ມີ chunk-size warning). SQL ຜ່ານ 163 assertions (136 regression + 27 workflows) ໃນ PGlite ພ້ອມ schema replay ແລະ rollback guard. Auth tables/JWT functions ໃນ harness ເປັນ stub ຈຳລອງ.
 
-**NOT RUN:** Supabase Auth/PostgREST ຈິງ, hosted advisors, concurrent connections, financial reconciliation ຂໍ້ມູນຈິງ. Excel ກວດແລ້ວ 578 ລາຍການ/578 ລະຫັດບໍ່ຊ້ຳ ແຕ່ບໍ່ມີຄໍລຳມູນຄ່າງົບ. ບໍ່ໄດ້ທົດສອບ login ໃນເວັບຈິງ ຫຼືອ້າງວ່າຍ້າຍ backend ສຳເລັດແລ້ວ.
+**NOT RUN:** Supabase Auth/PostgREST ຈິງ, hosted advisors, financial reconciliation ຂໍ້ມູນຈິງ. Excel ກວດແລ້ວ 578 ລາຍການ/578 ລະຫັດບໍ່ຊ້ຳ ແຕ່ບໍ່ມີຄໍລຳມູນຄ່າງົບ. ບໍ່ໄດ້ທົດສອບ login ໃນເວັບຈິງ ຫຼືອ້າງວ່າຍ້າຍ backend ສຳເລັດແລ້ວ.
 
 ## ສິ່ງທີ່ຕ້ອງຕັດສິນກ່ອນ cutover
 
@@ -28,4 +28,4 @@ Lint ຜ່ານ; GAS tests 31 ຂໍ້ ແລະ TS test files 15 ໄຟລ�
 
 **ບໍ່ໄດ້ປ່ຽນ Supabase Database, GitHub main ຫຼື deployment.** ແອັບຈິງຍັງໃຊ້ GAS ຄືເກົ່າ. ສະຖານະ Draft PR ຈະຢູ່ໃນຄຳຕອບສົ່ງມອບພ້ອມລິ້ງ; ບໍ່ Merge.
 
-Follow-up: ເພີ່ມ workflow tests 27 ຂໍ້, read-only workbook audit script, native concurrency runner ແລະ review-only CI. Native runner ຍັງ NOT RUN ໃນເຄື່ອງນີ້ເພາະບໍ່ສາມາດຮັນ PostgreSQL ເປັນ non-root; ລໍກວດຜົນ CI. ບໍ່ໄດ້ປ່ຽນ migration schema ຫຼືໂຄດ frontend/GAS ໃນ follow-up ນີ້.
+Follow-up: ເພີ່ມ workflow tests 27 ຂໍ້, read-only workbook audit script, native concurrency runner ແລະ review-only CI. Native runner ຮັນບໍ່ໄດ້ໃນເຄື່ອງນີ້ເພາະ root-only, ແຕ່ CI ຜ່ານແລ້ວເທິງ PostgreSQL 17.11: SQL 163 assertions ແລະ native checks 9 ລາຍການ. ເບິ່ງ `docs/supabase-ci-results.md`. ບໍ່ໄດ້ປ່ຽນ migration schema ຫຼືໂຄດ frontend/GAS ໃນ follow-up ນີ້.

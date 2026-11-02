@@ -34,11 +34,11 @@ The additional `phase1-workflows.sql` suite checks customer create/edit/delete, 
 
 Assertions include each B1–B7's own customer and child read isolation; own budget create/edit; cross-team parent/contract mismatch; direct insert/update and role elevation rejection; forged user_metadata; server-owned financial payload rejection; inactive profiles; stale JWT after disable; missing Auth session; anon denial; operation replay and changed-request rejection; stale-version conflicts; leap anniversary; transaction date/FK/overbudget validation; cancellation exactly once; SQL text treated as data; Admin all-team access; audit/receipt counts; all proposed public tables RLS; no public SECURITY DEFINER functions.
 
-## NOT RUN — required before cutover
+## Remaining validation before cutover
 
 - Real Supabase Auth enroll/login/reset/refresh/signout, user disable/role change under real JWTs, session cleanup behavior, HTTP rate limits and enrollment adapter.
 - PostgREST/GraphQL schema exposure and explicit grants on actual hosted version; REST RPC responses/SQLSTATE mapping; actual policies via platform advisors.
-- Multi-connection concurrent writes (PGlite is a single in-process connection). The sequential stale-version assertion does not count as a concurrency test.
+- Native multi-connection tests now PASS in CI on PostgreSQL 17.11; see `docs/supabase-ci-results.md`. PGlite alone remains a single-connection harness and is not the concurrency evidence.
 - Workbook structural validation is now complete (578 rows); live-source monetary reconciliation, historical exceptions and privileged Admin config/account/import services remain NOT RUN.
 - Supabase frontend adapter, PWA migration, offline queue reconciliation, signed cutover/rollback rehearsal.
 - Hosted security/performance advisors, query plans at real data volume. No hosted API call was made for these.
@@ -66,7 +66,7 @@ Repeat with two ADD_TRANSACTION operations against the same remaining amount: at
 
 **Local native execution: NOT RUN.** This managed environment uses root; `runuser` cannot set groups and `setpriv` cannot switch UID. The runner correctly refuses root before starting a server. We did not disable PostgreSQL's root restriction. `node --check` passes for both new JS utilities.
 
-`supabase/review/test-tools/package.json` and its lockfile pin test-only dependencies. `.github/workflows/supabase-review.yml` runs on pull requests and manual dispatch with only contents:read, no secrets, no environment and no deployment steps. It installs locked test tools with lifecycle scripts disabled; the native runner uses the package's documented symlink rehydration option. CI execution must be inspected before native concurrency is marked PASS.
+`supabase/review/test-tools/package.json` and its lockfile pin test-only dependencies. `.github/workflows/supabase-review.yml` runs on pull requests and manual dispatch with only contents:read, no secrets, no environment and no deployment steps. It installs locked test tools with lifecycle scripts disabled; the native runner uses the package's documented symlink rehydration option. CI run 41384685515 has now been inspected and all 9 native checks PASS; see `docs/supabase-ci-results.md` for the exact tested commit. Native execution remains NOT RUN in the root-only managed workspace.
 
 On a non-root Linux/macOS development account after installing the locked dependencies:
 
@@ -78,3 +78,5 @@ node supabase/review/run-concurrency.mjs
 ```
 
 The native package version is a pinned beta distribution of PostgreSQL binaries; it is test-only and never used by the application or a production DB.
+
+The first review CI run completed successfully on commit `145ae9e277afb694984b92ed0860d484c8af308d`. The native runner executed all 163 SQL assertions and observed real competing-connection lock waits. This supersedes the initial unexecuted concurrency procedure status, while leaving hosted Auth/PostgREST and live data reconciliation untested.
