@@ -36,7 +36,8 @@ enable_signup = false
 enable_anonymous_sign_ins = false
 minimum_password_length = 12
 [auth.email]
-enable_signup = false
+# Keep the email provider enabled; global auth.enable_signup still blocks public signup.
+enable_signup = true
 enable_confirmations = false
 [analytics]
 enabled = false

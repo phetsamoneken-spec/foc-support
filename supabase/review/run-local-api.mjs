@@ -47,7 +47,7 @@ try{
   const id=created.data.id||created.data.user?.id;if(!id)throw Error('Local Auth user ID missing');
   await owner.query('insert into public.mkt_profiles(id,username,role,team,is_active) values($1,$2,$3,$4,$5)',[id,'review-'+i,i===0?'ADMIN':'TEAM_USER',i===0?'ALL':'B'+Math.min(i,7),i!==8]);
   const login=await request('/auth/v1/token?grant_type=password',{method:'POST',body:{email,password}});
-  assert.equal(login.status,200,'Synthetic local Auth login failed');assert.ok(login.data.access_token&&login.data.refresh_token,'Local Auth tokens absent');
+  assert.equal(login.status,200,'Synthetic local Auth login failed; code='+String(login.data?.error_code||login.data?.error||'unknown'));assert.ok(login.data.access_token&&login.data.refresh_token,'Local Auth tokens absent');
   identities.push({id,email,password,token:login.data.access_token,refresh:login.data.refresh_token});
  }
  pass('actual Auth creates and signs in Admin, B1-B7 and inactive-profile fixture');
