@@ -1,3 +1,4 @@
+import {isSupabaseBackend,SUPABASE_DASHBOARD_URL} from '../config/supabase';
 import React, { useRef, useState } from 'react';
 import {
   Settings as SettingsIcon,
@@ -31,6 +32,7 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenGasDocs, theme, onThemeChange }) => {
   const currentUser = storage.getCurrentUser();
   const settings = storage.getSettings();
+  const native=isSupabaseBackend(settings.appsScriptUrl);
   const lang: Language = settings.language;
   const t = translations[lang];
   const isAdmin = currentUser?.role === 'ADMIN';
@@ -162,8 +164,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenGasDocs, theme
         </h2>
         <p className="text-xs text-slate-500">
           {lang === 'lo'
-            ? 'ກຳນົດສະກຸນເງິນ, ແຈ້ງເຕືອນສັນຍາ, ເຊື່ອມຕໍ່ Google Sheets ແລະ Apps Script'
-            : 'Configure currency, contract alert days, thresholds, and Google Sheets backend integration'}
+            ? 'ກຳນົດສະກຸນເງິນ, ແຈ້ງເຕືອນສັນຍາ, ເຊື່ອມຕໍ່ຖານຂໍ້ມູນ'
+            : 'Configure currency, contract alert days, thresholds, and shared database settings'}
         </p>
       </div>
 
@@ -307,6 +309,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenGasDocs, theme
           </div>
         </div>
 
+        {native ? <section className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">
+          <h3 className="font-bold text-slate-900">Supabase Database & Auth</h3>
+          <p className="text-sm text-slate-600">{lang==='lo'?'ຂໍ້ມູນຮ້ານ, ລາຍຈ່າຍ ແລະ User ບັນທຶກໃນ Supabase. ທຸກເຄື່ອງໃຊ້ຖານຂໍ້ມູນດຽວກັນ ຕາມສິດທີ່ Admin ກຳນົດ.':'Stores, expenses and users are saved in Supabase. Every device uses the same database with permissions set by Admin.'}</p>
+          <p className="text-xs text-slate-500">{lang==='lo'?'Google Sheet ເດີມເກັບໄວ້ເປັນສຳຮອງກ່ອນຍ້າຍ.':'The previous Google Sheet remains a backup from before the migration.'}</p>
+          <div className="flex gap-3"><button type="button" disabled={testingGas} onClick={handleTestGasConnection} className="rounded-xl border px-4 py-2 text-sm">{lang==='lo'?'ທົດສອບການເຊື່ອມຕໍ່':'Test connection'}</button><a href={SUPABASE_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white">Supabase Dashboard</a></div>
+          {gasTestResult&&<p role="status" className={gasTestResult.success?'text-emerald-700':'text-rose-700'}>{gasTestResult.message}</p>}
+        </section> : <>
         {/* Section 3: Alert Thresholds */}
         <div className="bg-white p-5 rounded-2xl shadow-xs border border-slate-200 space-y-4">
           <div className="flex items-center gap-2 text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
@@ -452,16 +461,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenGasDocs, theme
           </div>
         </div>
 
+        </>}
+
         {isAdmin && (
           <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3">
-            <h3 className="text-sm font-bold text-slate-900">{lang === 'lo' ? 'ບັນທຶກຂໍ້ມູນໄປ Google Sheets' : 'Save data to Google Sheets'}</h3>
-            <p className="text-xs text-slate-600">{lang === 'lo' ? 'Sync ດ້ວຍຕົນເອງ: ລູກຄ້າ, ເງື່ອນໄຂ, ສັນຍາ, ງົບປະມານ, ລາຍຈ່າຍ, ປະຫວັດ ແລະຄ່າທີ່ບັນທຶກແລ້ວ. ອັບເດດຕາມ ID ໂດຍບໍ່ລຶບແຖວເກົ່າ; ຖ້າຕ້ອງການດຶງຂໍ້ມູນກັບ ໃຫ້ກົດ “ໂຫຼດຈາກ Sheet” ດ້ານເທິງ.' : 'Manual app-to-Sheets sync of customers, conditions, contracts, budgets, transactions, logs and saved settings. Updates by ID, preserves other rows, and sends this browser’s changes to Sheets. Use “Load from Sheet” above to import the latest Sheet data.'}</p>
+            <h3 className="text-sm font-bold text-slate-900">{lang === 'lo' ? `ບັນທຶກຂໍ້ມູນໄປ ${native?'Supabase':'Google Sheets'}` : `Save data to ${native?'Supabase':'Google Sheets'}`}</h3>
+            {native?<p className="text-xs text-slate-600">{lang==='lo'?'ການເພີ່ມ, ແກ້ໄຂ ແລະລົບ ບັນທຶກໄປ Supabase ທັນທີ. ເຄື່ອງອື່ນຈະໂຫຼດຂໍ້ມູນລ່າສຸດທຸກ 15 ວິນາທີ ໃນຂະນະເປີດແອັບ.':'Adds, edits and deletions save to Supabase immediately. Other open devices refresh every 15 seconds.'}</p>:<p className="text-xs text-slate-600">{lang === 'lo' ? 'Sync ດ້ວຍຕົນເອງ: ລູກຄ້າ, ເງື່ອນໄຂ, ສັນຍາ, ງົບປະມານ, ລາຍຈ່າຍ, ປະຫວັດ ແລະຄ່າທີ່ບັນທຶກແລ້ວ. ອັບເດດຕາມ ID ໂດຍບໍ່ລຶບແຖວເກົ່າ; ຖ້າຕ້ອງການດຶງຂໍ້ມູນກັບ ໃຫ້ກົດ “ໂຫຼດຈາກ Sheet” ດ້ານເທິງ.' : 'Manual app-to-Sheets sync of customers, conditions, contracts, budgets, transactions, logs and saved settings. Updates by ID, preserves other rows, and sends this browser’s changes to Sheets. Use “Load from Sheet” above to import the latest Sheet data.'}</p>}
             <div className="flex flex-wrap gap-2">
-              <a href="./Code.gs" download="Code.gs" className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700">{lang === 'lo' ? 'ດາວໂຫຼດ Code.gs (ໄຟລ໌ດຽວ)' : 'Download unified Code.gs'}</a>
+              {!native&&<a href="./Code.gs" download="Code.gs" className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700">{lang === 'lo' ? 'ດາວໂຫຼດ Code.gs (ໄຟລ໌ດຽວ)' : 'Download unified Code.gs'}</a>}
               <button type="button" disabled={syncingSheets} onClick={async()=>{setSyncingSheets(true);try{setSyncResult(await storage.backupDatabase());}finally{setSyncingSheets(false);}}} className="px-4 py-2 rounded-xl border border-blue-300 text-blue-800 text-xs font-bold disabled:opacity-50">{lang==='lo'?'ສຳຮອງຂໍ້ມູນທັງໝົດ ລວມ User':'Back up all data including users'}</button>
               <button type="button" onClick={handleSyncToSheets} disabled={syncingSheets || !formData.appsScriptUrl.trim()} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer">
                 <RefreshCw className={`w-4 h-4 ${syncingSheets ? 'animate-spin' : ''}`} />
-                {syncingSheets ? (lang === 'lo' ? 'ກຳລັງ Sync…' : 'Syncing…') : (lang === 'lo' ? 'Sync ໄປ Google Sheets' : 'Sync to Google Sheets')}
+                {syncingSheets ? (lang === 'lo' ? 'ກຳລັງ Sync…' : 'Syncing…') : (lang === 'lo' ? `Sync ໄປ ${native?'Supabase':'Google Sheets'}` : `Sync to ${native?'Supabase':'Google Sheets'}`)}
               </button>
             </div>
             {syncResult && <p role="status" className={`p-3 rounded-xl text-xs border ${syncResult.success ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 'text-rose-800 bg-rose-50 border-rose-200'}`}>{syncResult.message}</p>}

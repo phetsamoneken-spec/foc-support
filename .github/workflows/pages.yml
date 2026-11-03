@@ -32,8 +32,11 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Check TypeScript
         run: npm run lint
-      - name: Test Sheets sync and user accounts
+      - name: Test database sync and user accounts
         run: |
+          node scripts/build-supabase-domain.mjs
+          node tests/supabase-domain.test.mjs
+          node --import tsx tests/supabase-transport.test.ts
           node tests/gas-sync.test.cjs
           node --import tsx tests/remote-accounts.test.ts
           node --import tsx tests/customer-delete.test.ts

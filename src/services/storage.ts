@@ -1,7 +1,7 @@
 import {makeBrowserRecovery,type BrowserRecovery} from './legacyRecovery';
 import {businessWriteKey,newBusinessWriteId,type PendingBusinessWrite,type BusinessWriteKind,type BusinessWriteResult,type BusinessWriteState} from './businessWrites';
 import {businessToday, isCalendarDate, projectAnnualBudgets, selectAnnualBudget, refreshBudgetTotals} from './annualBudgets';
-import { accountRequest, clearRemoteSession, remoteSession, type AccountResponse } from './remoteAccounts';
+import { accountRequest, clearRemoteSession, remoteSession, remoteSessionId, type AccountResponse } from './remoteAccounts';
 import { resolveBackendUrl, isRetiredBackend, DEPLOYED_BACKEND_URL, RETIRED_BACKENDS } from '../config/backend';
 import { businessFingerprint, validateBusinessSnapshot, type BusinessSnapshot } from './businessData';
 import {sharedSettings, sharedSettingKeys} from './sharedSettings';
@@ -138,7 +138,7 @@ class StorageService {
   public async recoverLegacyCache(reason='LOAD_SHEET'):Promise<BusinessWriteResult>{
     if(this.getPendingSheetPublish())return {success:false,message:'Finish or cancel the pending Sheet publication first. Uploaded data is retained.'};
     if(this.recoveryFlight)return this.recoveryFlight;
-    const actor=this.currentUser,endpoint=this.settings.appsScriptUrl,token=remoteSession(endpoint)?.token;
+    const actor=this.currentUser,endpoint=this.settings.appsScriptUrl,token=remoteSessionId(endpoint);
     if(!actor||!token)return {success:false,message:'Login again to back up local data.'};
     if(this.businessWriteFlight||this.bulkPublishing)return {success:false,message:'Wait for the current Sheet save to finish.'};
     ++this.sheetLoadSequence;
@@ -149,7 +149,7 @@ class StorageService {
       this.sheetDataState={status:'loading',message:'ກຳລັງສຳຮອງຂໍ້ມູນເກົ່າລົງ Sheet ແລະໂຫຼດຂໍ້ມູນຫຼ້າສຸດ…'};this.notify();
       const result=await accountRequest(endpoint,'SAVE_BROWSER_RECOVERY',{recovery});
       if(this.currentUser?.id===actor.id&&this.settings.appsScriptUrl===endpoint&&!remoteSession(endpoint)){this.setCurrentUser(null);return {success:false,message:'Login again after the database migration. Local backup retained.'};}
-      if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSession(endpoint)?.token!==token)return {success:false,message:'Account changed; local backup retained.'};
+      if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSessionId(endpoint)!==token)return {success:false,message:'Account changed; local backup retained.'};
       try{
         if(!result.success||result.recoveryVersion!==1||result.recoveryId!==recovery.id)throw Error(result.message||'Update Code.gs and deploy a new version to back up old browser data automatically.');
         const user=result.user;if(!user||user.id!==actor.id||!['ADMIN','TEAM_USER'].includes(user.role)||user.role!=='ADMIN'&&!/^B[1-7]$/.test(user.team))throw Error('Invalid backup account');
@@ -235,7 +235,7 @@ class StorageService {
   }
   public async retryPendingBusinessWrite():Promise<BusinessWriteResult>{
     if(this.businessWriteFlight)return this.businessWriteFlight;
-    const pending=this.getPendingBusinessWrite(),actor=this.currentUser,key=this.currentWriteKey(),endpoint=this.settings.appsScriptUrl,token=remoteSession(endpoint)?.token;
+    const pending=this.getPendingBusinessWrite(),actor=this.currentUser,key=this.currentWriteKey(),endpoint=this.settings.appsScriptUrl,token=remoteSessionId(endpoint);
     if(!pending)return {success:true,message:''};
     if(!actor||!token)return {success:false,message:'Login again to retry the pending Sheet save.'};
     if(this.bulkPublishing)return {success:false,message:'Wait for Sheet publication to finish.'};
@@ -246,13 +246,13 @@ class StorageService {
       if((pending.kind==='DELETE_CUSTOMER'||pending.kind==='DELETE_ALL_CUSTOMERS')&&!(this.deletionSupport?.endpoint===endpoint&&this.deletionSupport.actorId===actor.id&&this.deletionSupport.token===token)){
         const capability=await accountRequest(endpoint,'GET_BUSINESS_DATA');
         if(this.currentUser?.id===actor.id&&this.settings.appsScriptUrl===endpoint&&!remoteSession(endpoint)){this.setCurrentUser(null);return {success:false,message:'Login again. The delete receipt is retained.'};}
-        if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSession(endpoint)?.token!==token)return {success:false,message:'Account changed; the delete receipt is retained.'};
+        if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSessionId(endpoint)!==token)return {success:false,message:'Account changed; the delete receipt is retained.'};
         if(!capability.success||capability.deletionVersion!==1){const message=capability.success?'ກະລຸນາໃຫ້ Admin ຕິດຕັ້ງ Code.gs ໃໝ່ ແລະ Deploy → New version ເພື່ອລົບແຖວໃນ Sheet.':capability.message||'Could not verify Sheet deletion support';this.writeFeedback={key,status:'error',message};this.notify();return {success:false,message};}
         this.rememberDeletionSupport(capability,endpoint,actor.id,token);
       }
       const result=await accountRequest(endpoint,'MUTATE_BUSINESS',{id:pending.id,kind:pending.kind,data:pending.data});
       if(this.currentUser?.id===actor.id&&this.settings.appsScriptUrl===endpoint&&!remoteSession(endpoint)){this.setCurrentUser(null);return {success:false,message:'Login again. The save receipt is retained.'};}
-      if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSession(endpoint)?.token!==token)return {success:false,message:'Account changed; the save receipt is retained for the original account.'};
+      if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSessionId(endpoint)!==token)return {success:false,message:'Account changed; the save receipt is retained for the original account.'};
       try{
         if(!result.success){
           if(result.writeVersion===1&&result.retryable===false){safeRemoveItem(key);if(pending.previousEndpoint)safeRemoveItem(businessWriteKey(actor.id,pending.previousEndpoint));}
@@ -306,12 +306,12 @@ class StorageService {
     return user;
   }
   public async refreshSharedSettings():Promise<{success:boolean;message:string}> {
-    const actor=this.currentUser,endpoint=this.settings.appsScriptUrl,token=remoteSession(endpoint)?.token;
+    const actor=this.currentUser,endpoint=this.settings.appsScriptUrl,token=remoteSessionId(endpoint);
     if(!actor||!token)return {success:false,message:'Sign in first'};
     try{
       const result=await accountRequest(endpoint,'GET_SHARED_SETTINGS');
       if(this.currentUser?.id===actor.id&&this.settings.appsScriptUrl===endpoint&&!remoteSession(endpoint)){this.setCurrentUser(null);return {success:false,message:'Login again after the database migration.'};}
-      if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSession(endpoint)?.token!==token)return {success:false,message:'Account changed'};
+      if(this.currentUser?.id!==actor.id||this.settings.appsScriptUrl!==endpoint||remoteSessionId(endpoint)!==token)return {success:false,message:'Account changed'};
       if(!result.success)throw Error(result.message||'Update Code.gs to load shared Admin settings.');
       this.applySharedResponse(result,actor);this.recalculateContractStatuses();this.notify();return {success:true,message:'Shared Admin settings loaded'};
     }catch(error){const message=error instanceof Error?error.message:String(error);this.sheetDataState={status:'error',message};this.notify();return {success:false,message};}
@@ -342,7 +342,7 @@ class StorageService {
   }
   public async loadBusinessFromSheets(replaceLocal=false,background=false): Promise<{success:boolean;message:string}> {
     const endpoint=this.settings.appsScriptUrl, actor=this.currentUser;
-    const token=remoteSession(endpoint)?.token;
+    const token=remoteSessionId(endpoint);
     if(!actor || !token)return {success:false,message:'Sign in to Sheets first.'};
     if(this.getPendingSheetPublish())return {success:false,message:'Finish or cancel the pending Sheet publication first. Uploaded data is retained.'};
     if(this.bulkPublishing)return {success:false,message:'Wait for the Excel/Sheet publication to finish.'};
@@ -361,7 +361,7 @@ class StorageService {
       const result=await accountRequest(endpoint,'GET_BUSINESS_DATA');
       if(sequence!==this.sheetLoadSequence)return {success:false,message:'Newer read started; old response ignored.'};
       if(this.currentUser?.id===actor.id&&this.settings.appsScriptUrl===endpoint&&!remoteSession(endpoint)){this.setCurrentUser(null);return publish('error','Login again after the database migration.');}
-      if(this.currentUser?.id!==actor.id || this.settings.appsScriptUrl!==endpoint || remoteSession(endpoint)?.token!==token)return publish('error','Session changed. Please load from Sheet again.');
+      if(this.currentUser?.id!==actor.id || this.settings.appsScriptUrl!==endpoint || remoteSessionId(endpoint)!==token)return publish('error','Session changed. Please load from Sheet again.');
       if(!result.success || result.dataVersion!==1 || result.settingsVersion!==1){
         const error=result.message || result.error || '';
         if(result.success || /Unsupported action|Unknown action/.test(error))throw Error('ກະລຸນາໃຫ້ Admin ອັບເດດ Code.gs ແລະ Deploy → New version ກ່ອນໂຫຼດຂໍ້ມູນຈາກ Sheet.');

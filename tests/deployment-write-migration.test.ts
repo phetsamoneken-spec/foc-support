@@ -20,7 +20,7 @@ assert.equal(post('MUTATE_BUSINESS',command,login.token).success,true,'old deplo
 const pending={...command,actorId:actor.id,endpoint:oldEndpoint,createdAt:'2026-11-01T00:00:00Z'};
 const oldKey=businessWriteKey(actor.id,oldEndpoint),newKey=businessWriteKey(actor.id,endpoint);values.set(oldKey,JSON.stringify(pending));
 let loseNext=true,mutations=0;
-globalThis.fetch=async(url,init)=>{assert.equal(url,endpoint);const body=JSON.parse(String(init?.body));const result=post(body.action,body.payload,body.authToken);if(body.action==='MUTATE_BUSINESS'){mutations++;assert.equal(body.payload.id,command.id);if(loseNext){loseNext=false;throw Error('Lost migration acknowledgement');}}return new Response(JSON.stringify(result));};
+globalThis.fetch=async(url,init)=>{assert.equal(url,endpoint);const body=JSON.parse(String(init?.body));const result=post(body.action,body.payload,body.authToken||(init?.headers as Record<string,string>)?.Authorization?.replace('Bearer ',''));if(body.action==='MUTATE_BUSINESS'){mutations++;assert.equal(body.payload.id,command.id);if(loseNext){loseNext=false;throw Error('Lost migration acknowledgement');}}return new Response(JSON.stringify(result));};
 const {storage}=await import('../src/services/storage');assert.equal(storage.getSettings().appsScriptUrl,endpoint);
 assert.equal((await storage.login('admin','Test-only-password-42!')).success,true);assert.equal((await storage.loadBusinessFromSheets()).success,true);
 assert.equal(storage.getPendingBusinessWrite()!.id,command.id);assert.equal(storage.getPendingBusinessWrite()!.endpoint,endpoint);assert.ok(values.get(oldKey),'original receipt is retained until acknowledgement');assert.ok(values.get(newKey));
