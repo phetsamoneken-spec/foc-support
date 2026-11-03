@@ -1,3 +1,4 @@
+import {isSupabaseBackend} from '../config/supabase';
 import React, { useEffect, useRef } from 'react';
 import { APP_VERSION } from '../services/appUpdates';
 import {
@@ -210,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
 
           {/* Google Apps Script Quick Action Box (Admin Only) */}
-          {isAdmin && (
+          {isAdmin && !isSupabaseBackend(settings.appsScriptUrl) && (
             <div className="p-3.5 rounded-2xl bg-gradient-to-b from-slate-800/80 to-slate-800/40 border border-slate-700/80">
               <div className="flex items-center gap-2 text-xs font-bold text-blue-400">
                 <Code2 className="w-4 h-4" />

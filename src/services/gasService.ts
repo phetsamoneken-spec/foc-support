@@ -5,7 +5,8 @@
  */
 
 import { storage } from './storage';
-import { remoteSession } from './remoteAccounts';
+import { accountRequest,remoteSessionId } from './remoteAccounts';
+import {isSupabaseBackend,isBackendEndpoint,SUPABASE_PUBLISHABLE_KEY} from '../config/supabase';
 import {publishWithLockRetry,type SheetPublishSource} from './sheetPublish';
 
 export interface GasResponse<T = unknown> {
@@ -36,7 +37,7 @@ export class GasService {
     latencyMs?: number;
     details?: unknown;
   }> {
-    if (!scriptUrl || !scriptUrl.startsWith('https://script.google.com/')) {
+    if (!isBackendEndpoint(scriptUrl)) {
       return {
         success: false,
         message: 'Invalid URL. Must start with https://script.google.com/macros/s/.../exec'
@@ -51,7 +52,7 @@ export class GasService {
       const response = await fetch(testEndpoint, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json'
+          'Accept': 'application/json',...(isSupabaseBackend(scriptUrl)?{apikey:SUPABASE_PUBLISHABLE_KEY}:{})
         }
       });
 
@@ -67,9 +68,9 @@ export class GasService {
 
       const json = await response.json();
       return {
-        success: json.success === true,
+        success: json.success === true && json.ready !== false,
         latencyMs,
-        message: json.message || json.error || (json.success === true ? 'Connected successfully to Google Apps Script!' : 'Backend rejected the connection check.'),
+        message: json.message || json.error || (json.success === true ? (isSupabaseBackend(scriptUrl)?(json.ready?'Connected to Supabase.':'Supabase migration is still in progress.'):'Connected successfully to Google Apps Script!') : 'Backend rejected the connection check.'),
         details: json
       };
     } catch (err: unknown) {
@@ -103,38 +104,7 @@ export class GasService {
       };
     }
 
-    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/?#]+\/exec$/.test(endpoint)) {
-      return { success: false, message: 'Use the deployed Google Apps Script URL ending in /exec.' };
-    }
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8' // GAS handles text/plain without CORS preflight issues
-        },
-        body: JSON.stringify({
-          action,
-          payload,
-          authToken: remoteSession(endpoint)?.token,
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`);
-      }
-
-      const resJson = await response.json();
-      return resJson;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn('Google Apps Script call failed:', msg);
-      return {
-        success: false,
-        message: msg
-      };
-    }
+    return accountRequest(endpoint,action,payload);
   }
 
   /**
@@ -145,10 +115,10 @@ export class GasService {
     message: string;
   }> {
     const settings=storage.getSettings(),endpoint=(scriptUrl||settings.appsScriptUrl).trim();
-    if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/?#]+\/exec$/.test(endpoint))return {success:false,message:'Use the deployed Google Apps Script URL ending in /exec.'};
+    if(!isBackendEndpoint(endpoint))return {success:false,message:'Use the deployed Google Apps Script URL ending in /exec.'};
     if(!storage.canManageSettings())return {success:false,message:'Admin permission required'};
-    const actor=storage.getCurrentUser()!,token=remoteSession(endpoint)?.token;
-    const sameAccount=()=>storage.getCurrentUser()?.id===actor.id&&storage.canManageSettings()&&remoteSession(endpoint)?.token===token&&storage.getSettings().appsScriptUrl===settings.appsScriptUrl;
+    const actor=storage.getCurrentUser()!,token=remoteSessionId(endpoint);
+    const sameAccount=()=>storage.getCurrentUser()?.id===actor.id&&storage.canManageSettings()&&remoteSessionId(endpoint)===token&&storage.getSettings().appsScriptUrl===settings.appsScriptUrl;
     try{storage.beginBulkPublish();}catch(error){return {success:false,message:error instanceof Error?error.message:String(error)};}
     try{
       const pending=storage.getPendingSheetPublish(endpoint)||storage.savePendingSheetPublish(endpoint,storage.getGoogleSheetsSnapshot(),source);

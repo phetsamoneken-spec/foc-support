@@ -1,0 +1,5 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+let source=readFileSync('gas/Code.gs','utf8').replace('return findUser_(ss,row[0])||row;','return row;').replace("if (!/^\\$2[aby]\\$/.test(String(row[2]))) throw new Error('Set a new password for this user');", "if (!String(row[2]).startsWith('native:') && !/^\\$2[aby]\\$/.test(String(row[2]))) throw new Error('Set a new password for this user');");
+const prefix=`// Generated from gas/Code.gs. Server-only domain rules; no Google API calls.\n// @ts-nocheck\nexport function createDomain(adapter){\nconst {SpreadsheetApp,PropertiesService,LockService,ContentService,Utilities,CacheService,Logger}=adapter;\n`;
+const suffix=`\nensureDailyDatabaseBackup_=()=>null;\nreturn {handle:doPost,publicUser:publicUser_,userRows:userRows_,writeUser:writeUser_,findUser:findUser_,readBusiness:readBusinessData_,requireSession:requireSession_,\nprepareUser(data,existing,actor,selfOnly){const original=writeUser_;writeUser_=()=>{};try{return saveRemoteUser_(adapter.spreadsheet,data,existing,actor,selfOnly);}finally{writeUser_=original;}},\n};\n}\n`;
+writeFileSync('supabase/functions/foc-support/domain.js',prefix+source+suffix);

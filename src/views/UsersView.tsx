@@ -1,3 +1,4 @@
+import {isSupabaseBackend} from '../config/supabase';
 import React, { useState } from 'react';
 import {
   UserCog,
@@ -215,16 +216,16 @@ export const UsersView: React.FC = () => {
   return (
     <div className="space-y-6">
       {settings.appsScriptUrl && <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
-        <h3 className="font-bold text-slate-900">User accounts → Google Sheet USERS</h3>
-        <p className="text-xs text-slate-600">{lang === 'lo' ? 'ເຂົ້າລະບົບ backend ດ້ວຍ Admin ກ່ອນ. ກົດ Sync Users ເພື່ອຍ້າຍບັນຊີເກົ່າໃນ browser ໄປ Sheet. ຫຼັງຈາກນັ້ນການເພີ່ມ/ແກ້ User ຈະຂຽນລົງ Sheet ໂດຍກົງ.' : 'Sign in as a backend Admin. Sync Users migrates this browser’s accounts to Sheets. Subsequent user changes are written directly to Sheets.'}</p>
+        <h3 className="font-bold text-slate-900">User accounts → {isSupabaseBackend(settings.appsScriptUrl)?'Supabase Auth':'Google Sheet USERS'}</h3>
+        {isSupabaseBackend(settings.appsScriptUrl)?<p className="text-xs text-slate-600">{lang==='lo'?'ບັນຊີຜູ້ໃຊ້ບັນທຶກໃນ Supabase Auth. Admin ສາມາດເພີ່ມ, ແກ້ໄຂ, ປິດບັນຊີ ແລະກຳນົດທີມໄດ້.':'Accounts are stored in Supabase Auth. Admin can create, edit, disable accounts and assign teams.'}</p>:<p className="text-xs text-slate-600">{lang === 'lo' ? 'ເຂົ້າລະບົບ backend ດ້ວຍ Admin ກ່ອນ. ກົດ Sync Users ເພື່ອຍ້າຍບັນຊີເກົ່າໃນ browser ໄປ Sheet. ຫຼັງຈາກນັ້ນການເພີ່ມ/ແກ້ User ຈະຂຽນລົງ Sheet ໂດຍກົງ.' : 'Sign in as a backend Admin. Sync Users migrates this browser’s accounts to Sheets. Subsequent user changes are written directly to Sheets.'}</p>}
         {!connected && <div className="flex flex-wrap gap-2">
           <input aria-label="Sheet admin username" value={sheetUsername} onChange={e=>setSheetUsername(e.target.value)} className="rounded-xl border p-2 text-slate-900" />
           <input aria-label="Sheet admin password" type="password" value={sheetPassword} onChange={e=>setSheetPassword(e.target.value)} className="rounded-xl border p-2 text-slate-900" />
           <button type="button" disabled={accountBusy} onClick={()=>sheetOperation(()=>storage.login(sheetUsername,sheetPassword))} className="rounded-xl bg-blue-600 px-4 py-2 text-white">Sign in to Sheets</button>
         </div>}
         {connected && <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={accountBusy} onClick={()=>sheetOperation(()=>storage.syncUsersToSheets())} className="rounded-xl bg-emerald-600 px-4 py-2 text-white">Sync Users → Sheet</button>
-          <button type="button" disabled={accountBusy} onClick={()=>sheetOperation(()=>storage.loadUsersFromSheets())} className="rounded-xl border px-4 py-2 text-slate-800">Load Users from Sheet</button>
+          {!isSupabaseBackend(settings.appsScriptUrl)&&<button type="button" disabled={accountBusy} onClick={()=>sheetOperation(()=>storage.syncUsersToSheets())} className="rounded-xl bg-emerald-600 px-4 py-2 text-white">Sync Users → Sheet</button>}
+          <button type="button" disabled={accountBusy} onClick={()=>sheetOperation(()=>storage.loadUsersFromSheets())} className="rounded-xl border px-4 py-2 text-slate-800">Reload users</button>
         </div>}
         {accountBusy && <p role="status" className="text-xs text-blue-700">Saving user accounts…</p>}
       </section>}

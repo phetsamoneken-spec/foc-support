@@ -12,3 +12,6 @@ dev-dist/
 
 .openai/
 .aistudio/
+
+# Supabase CLI local state
+supabase/.temp/

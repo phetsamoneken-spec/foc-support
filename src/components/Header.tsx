@@ -1,3 +1,4 @@
+import {isSupabaseBackend,SUPABASE_DASHBOARD_URL} from '../config/supabase';
 import React, { useState } from 'react';
 import {
   FileSpreadsheet,
@@ -119,19 +120,19 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Google Sheets Link */}
             {isAdmin && <a
-              href={`https://docs.google.com/spreadsheets/d/${settings.spreadsheetId}/edit`}
+              href={isSupabaseBackend(settings.appsScriptUrl)?SUPABASE_DASHBOARD_URL:`https://docs.google.com/spreadsheets/d/${settings.spreadsheetId}/edit`}
               target="_blank"
               rel="noopener noreferrer"
-              title="Open Google Spreadsheet"
+              title={isSupabaseBackend(settings.appsScriptUrl)?'Open Supabase':'Open Google Spreadsheet'}
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-800/60 rounded-xl transition"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Google Sheet</span>
+              <span>{isSupabaseBackend(settings.appsScriptUrl)?'Supabase':'Google Sheet'}</span>
               <ExternalLink className="w-3 h-3 text-emerald-500" />
             </a>}
 
             {/* GAS Backend Code Modal Button (Admin Only) */}
-            {isAdmin && (
+            {isAdmin && !isSupabaseBackend(settings.appsScriptUrl) && (
               <button
                 onClick={onOpenGasDocs}
                 className="hidden lg:flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-300 bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800/60 rounded-xl transition cursor-pointer"
