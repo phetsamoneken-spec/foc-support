@@ -31,20 +31,6 @@ export function createBackend({url,key,fetch:request=fetch}){
   return {adapter,domain,token,row};
  }
  const sessionResult=session=>({token:session.access_token,refreshToken:session.refresh_token,expiresAt:new Date(Date.now()+session.expires_in*1000).toISOString()});
- async function bootstrap(){
-  const queue=await rpc('bootstrap_queue');
-  for(const q of queue){
-   let user;
-   try{user=await api('/auth/v1/admin/users',{email:q.internal_email,password_hash:q.password_hash,email_confirm:true,app_metadata:{foc_legacy_id:q.legacy_id}});}
-   catch(error){
-    // A prior execution may have created Auth before its linking transaction completed.
-    const listing=await api('/auth/v1/admin/users?page=1&per_page=1000');
-    user=listing.users?.find(u=>u.email===q.internal_email&&u.app_metadata?.foc_legacy_id===q.legacy_id);if(!user)throw error;
-   }
-   user=user.user||user;await rpc('link_import',{p_legacy_id:q.legacy_id,p_auth_id:user.id});
-  }
-  return rpc('health');
- }
  async function load(who,operations=[]){const snapshot=await rpc('load',{p_uid:who.uid,p_sid:who.sid,p_operations:operations});if(!snapshot?.actor)throw Error('Session expired. Sign in again.');return snapshot;}
  async function commit(who,snapshot,state,action){const changes=encodeChanges(state.adapter.changes(),snapshot,state.adapter);if(!changes.upserts.length&&!changes.deletes.length)return;return rpc('commit',{p_uid:who.uid,p_sid:who.sid,p_revision:snapshot.revision,p_action:action,p_changes:changes});}
  async function nativeAccount(action,payload,who,snapshot,state){
@@ -96,7 +82,7 @@ export function createBackend({url,key,fetch:request=fetch}){
    token=session.access_token;
   }
   who=await verified(token);
-  if(action==='AUTH_LOGOUT'){await rpc('revoke_sessions',{p_uid:who.uid,p_sid:who.sid,p_target:who.uid,p_all:false});return {success:true};}
+  if(action==='AUTH_LOGOUT'){await rpc('revoke_sessions',{p_uid:who.uid,p_sid:who.sid,p_target:who.uid,p_all:false});await api('/auth/v1/logout?scope=local',{}, {headers:{...serverHeaders,Authorization:'Bearer '+token}}).catch(()=>{});return {success:true};}
   if(action==='SYNC_USERS'){
    if(!Array.isArray(payload.users))throw Error('Missing users array');
    const first=await load(who);if(first.actor.role!=='ADMIN')throw Error('Admin permission required');
@@ -117,7 +103,7 @@ export function createBackend({url,key,fetch:request=fetch}){
    }catch(error){if(error.code==='40001'&&attempt<3)continue;throw error;}
   }
  }
- return {bootstrap,perform,health:()=>rpc('health')};
+ return {perform,health:()=>rpc('health')};
 }
 
 export function createHandler(backend){return async request=>{

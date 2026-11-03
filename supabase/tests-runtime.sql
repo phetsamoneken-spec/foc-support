@@ -29,5 +29,13 @@ update public.mkt_profiles set is_active=false where id='e0220e4b-5561-4ed7-b63e
 set local role service_role;
 do $$begin if public.mkt_edge_actor('e0220e4b-5561-4ed7-b63e-d2c908f24af1','4e093de7-efb9-4b9c-8dd1-781cc4a3755a') is not null then raise exception 'Disabled user retained access';end if;end;$$;
 reset role;
-select jsonb_build_object('native_session_gate',true,'team_rls',true,'admin_financial_boundary',true,'atomic_parent_child_creation',true,'revision_conflict',true,'disabled_account_denied',true,'server_rpc_private',true,'test_rows_rolled_back',true) as verification;
+update public.mkt_profiles set is_active=true where id='e0220e4b-5561-4ed7-b63e-d2c908f24af1';
+set local role service_role;
+select public.mkt_edge_revoke_sessions('e0220e4b-5561-4ed7-b63e-d2c908f24af1','4e093de7-efb9-4b9c-8dd1-781cc4a3755a','e0220e4b-5561-4ed7-b63e-d2c908f24af1',false);
+do $$begin if public.mkt_edge_actor('e0220e4b-5561-4ed7-b63e-d2c908f24af1','4e093de7-efb9-4b9c-8dd1-781cc4a3755a') is not null then raise exception 'Revoked session retained Edge access';end if;end;$$;
+reset role;
+set local role authenticated;
+do $$begin if exists(select 1 from public.mkt_customers) then raise exception 'Revoked session retained direct RLS access';end if;end;$$;
+reset role;
+select jsonb_build_object('native_session_gate',true,'team_rls',true,'admin_financial_boundary',true,'atomic_parent_child_creation',true,'revision_conflict',true,'disabled_account_denied',true,'server_rpc_private',true,'revoked_session_rls',true,'test_rows_rolled_back',true) as verification;
 rollback;

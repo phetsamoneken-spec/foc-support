@@ -15,7 +15,7 @@ The old Google Sheet is a backup from before migration. Supabase changes do not 
 ## Behavior and permissions
 
 - Native Auth validates passwords and rotates refresh tokens. The browser uses a single refresh request for simultaneous calls. A stable login identifier prevents refreshes from invalidating in-flight writes.
-- Authorization reads the active profile from PostgreSQL on every request. User-editable Auth metadata is never used for role or team decisions. Disabled profiles and revoked native sessions lose access immediately.
+- Authorization reads the active profile from PostgreSQL on every request. User-editable Auth metadata is never used for role or team decisions. Disabled profiles and revoked native sessions lose access immediately. Private session revocations and password-change cutoffs protect both the Edge API and direct RLS reads; native Auth logout also revokes its refresh token. No DELETE grant on the managed Auth session table is required.
 - Admin controls Excel imports, shared settings, contract renewals, prices and annual allowances. Team users can manage their own stores and expenses. PostgreSQL RLS independently restricts direct reads.
 - Server-only RPCs are granted exclusively to `service_role`. Old incomplete mutator RPCs are revoked from public clients. Browser clients cannot write tables directly.
 - A short PostgreSQL transaction locks the shared revision, validates changes, and commits working rows, history, archive chunks and operation receipts together. Conflicts reload the current snapshot and retry the same operation. Completed operation IDs prevent duplicate expenses or store creation after a lost response.
