@@ -12,7 +12,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'beerlao-budget-logo.webp', 'beerlao-budget-192.png', 'beerlao-budget-512.png', 'beerlao-budget-maskable-512.png', 'beerlao-budget-apple-touch.png'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'beerlao-budget-logo.webp', 'beerlao-budget-logo-v2.webp', 'beerlao-budget-v2-192.png', 'beerlao-budget-v2-512.png', 'beerlao-budget-v2-maskable-512.png', 'beerlao-budget-v2-apple-touch.png', 'beerlao-budget-192.png', 'beerlao-budget-512.png', 'beerlao-budget-maskable-512.png', 'beerlao-budget-apple-touch.png'],
         manifest: {
           id: './',
           name: 'MKT Budget Management',
@@ -25,19 +25,19 @@ export default defineConfig(() => {
           scope: './',
           icons: [
             {
-              src: 'beerlao-budget-192.png',
+              src: 'beerlao-budget-v2-192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: 'beerlao-budget-512.png',
+              src: 'beerlao-budget-v2-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: 'beerlao-budget-maskable-512.png',
+              src: 'beerlao-budget-v2-maskable-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',

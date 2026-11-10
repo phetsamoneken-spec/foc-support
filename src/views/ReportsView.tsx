@@ -1,16 +1,6 @@
-import React, { useState } from 'react';
-import {
-  BarChart3,
-  Download,
-  Printer,
-  Filter,
-  Calendar,
-  FileSpreadsheet,
-  CheckCircle2,
-  TrendingUp,
-  Wallet,
-  Users
-} from 'lucide-react';
+import React, {useEffect,useState} from 'react';
+import {BrandLogo} from '../components/BrandLogo';
+import {Download,Printer} from 'lucide-react';
 import { storage } from '../services/storage';
 import { translations, Language } from '../locales/translations';
 import { Team, TEAMS } from '../types';
@@ -18,6 +8,11 @@ import { Team, TEAMS } from '../types';
 interface ReportsViewProps {
   selectedTeam: Team | 'ALL';
   onSelectTeam: (team: Team | 'ALL') => void;
+}
+
+type ReportField={label:string;value:React.ReactNode;tone?:'used'|'remaining'};
+function ReportRecord({title,subtitle,fields}:{title:string;subtitle?:React.ReactNode;fields:ReportField[]}){
+  return <article className="report-record"><div className="report-record-heading"><h3>{title}</h3>{subtitle&&<p>{subtitle}</p>}</div><dl>{fields.map((field,index)=><div key={index}><dt>{field.label}</dt><dd className={field.tone?`report-value-${field.tone}`:undefined}>{field.value}</dd></div>)}</dl></article>;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
@@ -31,12 +26,24 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const isAdmin = currentUser?.role === 'ADMIN';
 
   const [reportType, setReportType] = useState<'SUMMARY_BY_TEAM' | 'CUSTOMER_BALANCES' | 'EXPENSES_BY_CATEGORY' | 'TRANSACTION_AUDIT'>('SUMMARY_BY_TEAM');
-  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
+  const [rowLimit,setRowLimit]=useState(100);
+  useEffect(()=>setRowLimit(100),[reportType,selectedTeam]);
 
   const metrics = storage.getDashboardMetrics(selectedTeam);
   const customers = storage.getCustomers(selectedTeam);
   const transactions = storage.getTransactions({ team: selectedTeam });
 
+  const scopedTeams=TEAMS.filter(team=>isAdmin?(selectedTeam==='ALL'||selectedTeam===team):team===currentUser?.team);
+  const shownCustomers=customers.slice(0,rowLimit),shownTransactions=transactions.slice(0,rowLimit);
+  const customerRows=reportType==='CUSTOMER_BALANCES'?shownCustomers.map(customer=>{const contract=storage.getActiveContract(customer.code),budget=storage.getBudgetForCustomer(customer.code);return {customer,contract,budget,util:budget?.utilizationPercentage||0};}):[];
+  const reportTitles={
+    SUMMARY_BY_TEAM:lang==='lo'?'ສະຫຼຸບຕາມທີມ':'Team summary',
+    CUSTOMER_BALANCES:lang==='lo'?'ຍອດເຫຼືອລູກຄ້າ':'Customer balances',
+    EXPENSES_BY_CATEGORY:lang==='lo'?'ຕາມໝວດລາຍຈ່າຍ':'Expenses by category',
+    TRANSACTION_AUDIT:lang==='lo'?'ປະຫວັດລາຍຈ່າຍ':'Transaction audit'
+  };
+  const rowCount=reportType==='CUSTOMER_BALANCES'?customers.length:reportType==='TRANSACTION_AUDIT'?transactions.length:0;
+  const generatedDate=new Date().toLocaleDateString(lang==='lo'?'lo-LA':'en-GB',{day:'2-digit',month:'2-digit',year:'numeric',calendar:'gregory'});
   const handlePrint = () => {
     window.print();
   };
@@ -48,7 +55,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
     if (reportType === 'SUMMARY_BY_TEAM') {
       headers = ['Team', 'Customers', 'Annual Budget', 'Used Budget', 'Remaining Budget', 'Utilization (%)'];
-      rows = TEAMS.map((tm) => {
+      rows = scopedTeams.map((tm) => {
         const tb = metrics.teamBudgets[tm];
         return [
           tm,
@@ -132,149 +139,26 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
 
-  return (
-    <div className="space-y-6">
-      
-      {/* Top Header & Export controls */}
-      <div className="no-print flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <span>{t.navReports}</span>
-          </h2>
-          <p className="text-xs text-slate-500">
-            {lang === 'lo'
-              ? 'ລາຍງານງົບປະມານການຕະຫຼາດ, ຍອດຍັງເຫຼືອ, ແລະ ສົ່ງອອກ Excel / CSV / PDF'
-              : 'Multi-dimensional marketing budget analytics and exports for management review'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl transition cursor-pointer shadow-xs"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span>{t.exportExcel} / CSV</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition cursor-pointer shadow-md shadow-slate-900/20 active:scale-95"
-          >
-            <Printer className="w-4 h-4" />
-            <span>{t.printReport}</span>
-          </button>
-        </div>
+  return <div className="reports-view space-y-4">
+    <div className="report-toolbar no-print"><div><h2 className="text-xl font-black text-slate-900">{t.navReports}</h2><p className="text-xs text-slate-600 mt-1">{lang==='lo'?'ສະຫຼຸບງົບປະມານ ແລະລາຍຈ່າຍຕາມຂໍ້ມູນຈິງ':'Budget and spending reports from your current data'}</p></div><div className="report-export-actions"><button type="button" onClick={handleExportCsv} className="report-export-button"><Download size={17}/><span>{t.exportExcel} / CSV</span></button><button type="button" onClick={handlePrint} className="report-print-button"><Printer size={17}/><span>{t.printReport}</span></button></div></div>
+    <div className="report-type-options no-print" role="group" aria-label={lang==='lo'?'ປະເພດລາຍງານ':'Report type'}>{(Object.keys(reportTitles) as (keyof typeof reportTitles)[]).map(type=><button key={type} type="button" aria-pressed={reportType===type} onClick={()=>setReportType(type)}>{reportTitles[type]}</button>)}</div>
+    <section className="report-document bg-white" aria-label={lang==='lo'?'ເອກະສານລາຍງານ':'Report document'}>
+      <div className="report-document-header"><div className="report-identity"><div className="report-brand"><BrandLogo size={44} decorative/><h1>{t.appName}</h1></div><p>{lang==='lo'?'ລາຍງານງົບປະມານ ແລະສັນຍາລູກຄ້າ':'Customer budget & contract performance report'}</p></div><dl className="report-metadata"><div><dt>{lang==='lo'?'ວັນທີລາຍງານ':'Report date'}</dt><dd>{generatedDate}</dd></div><div><dt>{lang==='lo'?'ຂອບເຂດທີມ':'Team scope'}</dt><dd>{selectedTeam==='ALL'?(isAdmin?t.allTeams:currentUser?.team):selectedTeam}</dd></div><div className="report-author"><dt>{lang==='lo'?'ຈັດທຳໂດຍ':'Prepared by'}</dt><dd>{currentUser?.fullName} · {isAdmin?'Admin':currentUser?.team}</dd></div></dl></div>
+      <dl className="report-kpis"><div><dt>{t.totalCustomers}</dt><dd data-report-kpi="customers">{metrics.totalCustomers}</dd></div><div><dt>{t.totalAnnualBudget}</dt><dd data-report-kpi="annual">{storage.formatCurrency(metrics.totalAnnualBudget)}</dd></div><div><dt>{t.totalBudgetUsed}</dt><dd data-report-kpi="used" className="report-value-used">{storage.formatCurrency(metrics.totalBudgetUsed)}</dd></div><div><dt>{t.totalRemainingBudget}</dt><dd data-report-kpi="remaining" className="report-value-remaining">{storage.formatCurrency(metrics.totalRemainingBudget)}</dd></div></dl>
+      <h2 className="report-section-title">{reportTitles[reportType]}</h2>
+      <div className="report-mobile-records">
+        {reportType==='SUMMARY_BY_TEAM'&&scopedTeams.map(team=>{const budget=metrics.teamBudgets[team];return <ReportRecord key={team} title={`${t.team} ${team}`} subtitle={`${budget.customerCount} ${lang==='lo'?'ລູກຄ້າ':'customers'}`} fields={[{label:t.annualBudget,value:storage.formatCurrency(budget.annualBudget)},{label:t.budgetUsed,value:storage.formatCurrency(budget.usedBudget),tone:'used'},{label:t.remainingBudget,value:storage.formatCurrency(budget.remainingBudget),tone:'remaining'},{label:t.utilizationRate,value:`${budget.utilization}%`}]}/>;})}
+        {reportType==='CUSTOMER_BALANCES'&&customerRows.map(({customer,contract,budget})=>{return <ReportRecord key={customer.code} title={customer.name} subtitle={`${customer.code} · ${customer.team}`} fields={[{label:t.contractPeriod,value:contract?`${contract.commencingOn} → ${contract.expiringOn}`:'—'},{label:t.annualBudget,value:storage.formatCurrency(budget?.annualAmount||0)},{label:t.budgetUsed,value:storage.formatCurrency(budget?.totalUsed||0),tone:'used'},{label:t.remainingBudget,value:storage.formatCurrency(budget?.remainingAmount||0),tone:'remaining'},{label:t.utilizationRate,value:`${budget?.utilizationPercentage||0}%`}]}/>;})}
+        {reportType==='EXPENSES_BY_CATEGORY'&&Object.entries(metrics.categoryUsage).sort((a,b)=>b[1]-a[1]).map(([category,amount])=><ReportRecord key={category} title={category} fields={[{label:t.amount,value:storage.formatCurrency(amount),tone:'used'},{label:lang==='lo'?'ສັດສ່ວນຂອງລາຍຈ່າຍ':'Share of total spending',value:`${Math.round(amount/(metrics.totalBudgetUsed||1)*1000)/10}%`}]} />)}
+        {reportType==='TRANSACTION_AUDIT'&&shownTransactions.map(transaction=><ReportRecord key={transaction.id} title={transaction.customerName} subtitle={`${transaction.id} · ${transaction.team}`} fields={[{label:t.date,value:transaction.date},{label:t.category,value:transaction.category},{label:t.amount,value:storage.formatCurrency(transaction.amount)},{label:t.invoiceRef,value:transaction.invoiceRef||'—'},{label:t.createdBy,value:transaction.createdBy}]}/>)}
       </div>
-
-      {/* Report Type Selector Tabs (no-print) */}
-      <div className="no-print bg-white p-3 rounded-2xl shadow-xs border border-slate-200 flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => setReportType('SUMMARY_BY_TEAM')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            reportType === 'SUMMARY_BY_TEAM'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {lang === 'lo' ? 'ສະຫຼຸບງົບປະມານຕາມທີມ (B1-B7)' : 'Team Summary (B1-B7)'}
-        </button>
-
-        <button
-          onClick={() => setReportType('CUSTOMER_BALANCES')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            reportType === 'CUSTOMER_BALANCES'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {lang === 'lo' ? 'ຍອດເຫຼືອງົບປະມານລູກຄ້າ (Customer Balances)' : 'Customer Balances'}
-        </button>
-
-        <button
-          onClick={() => setReportType('EXPENSES_BY_CATEGORY')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            reportType === 'EXPENSES_BY_CATEGORY'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {lang === 'lo' ? 'ລາຍຈ່າຍຕາມໝວດໝູ່ (Categories)' : 'Expenses by Category'}
-        </button>
-
-        <button
-          onClick={() => setReportType('TRANSACTION_AUDIT')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            reportType === 'TRANSACTION_AUDIT'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {lang === 'lo' ? 'ບັນທຶກລາຍການລະອຽດ (Transaction Log)' : 'Transaction Audit'}
-        </button>
-      </div>
-
-      {/* Printable Report Document Card */}
-      <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200 print:border-none print:shadow-none print:p-0">
-        
-        {/* Print Header */}
-        <div className="border-b border-slate-200 pb-5 mb-5 flex justify-between items-start">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-xs print:hidden">
-                MKT
-              </div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                {t.appName}
-              </h1>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {lang === 'lo' ? 'ລາຍງານການເຄື່ອນໄຫວງົບປະມານ ແລະ ສັນຍາລູກຄ້າ' : 'Marketing Customer Budget & Contract Performance Report'}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Google Spreadsheet ID: {settings.spreadsheetId}
-            </p>
-          </div>
-
-          <div className="text-right text-xs text-slate-500">
-            <p className="font-semibold text-slate-800">
-              {lang === 'lo' ? 'ວັນທີອອກລາຍງານ:' : 'Date:'} {new Date().toLocaleDateString()}
-            </p>
-            <p className="text-[11px]">
-              {lang === 'lo' ? 'ຜູ້ດາວໂຫຼດ:' : 'Generated by:'} {currentUser?.fullName} ({currentUser?.role})
-            </p>
-            <p className="text-[11px]">
-              {lang === 'lo' ? 'ຂອບເຂດທີມ:' : 'Scope:'} {selectedTeam === 'ALL' ? t.allTeams : `Team ${selectedTeam}`}
-            </p>
-          </div>
-        </div>
-
-        {/* Printable KPI Cards summary */}
-        <div className="grid grid-cols-4 gap-3 mb-6 print:grid-cols-4">
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase">{t.totalCustomers}</span>
-            <p className="text-lg font-black text-slate-900 mt-0.5">{metrics.totalCustomers}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase">{t.totalAnnualBudget}</span>
-            <p className="text-lg font-black text-slate-900 mt-0.5 truncate">{storage.formatCurrency(metrics.totalAnnualBudget)}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase">{t.totalBudgetUsed}</span>
-            <p className="text-lg font-black text-amber-600 mt-0.5 truncate">{storage.formatCurrency(metrics.totalBudgetUsed)}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-            <span className="text-[10px] text-slate-500 font-semibold uppercase">{t.totalRemainingBudget}</span>
-            <p className="text-lg font-black text-emerald-600 mt-0.5 truncate">{storage.formatCurrency(metrics.totalRemainingBudget)}</p>
-          </div>
-        </div>
-
         {/* Report Content Table */}
         {reportType === 'SUMMARY_BY_TEAM' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="report-table-wrap">
+            <table aria-label={reportTitles[reportType]} className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-2.5 px-3">{t.team}</th>
@@ -286,7 +170,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {TEAMS.map((tm) => {
+                {scopedTeams.map((tm) => {
                   const tb = metrics.teamBudgets[tm];
                   return (
                     <tr key={tm} className="hover:bg-slate-50">
@@ -321,8 +205,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         )}
 
         {reportType === 'CUSTOMER_BALANCES' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="report-table-wrap">
+            <table aria-label={reportTitles[reportType]} className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-2.5 px-3">{t.customerCode}</th>
@@ -336,10 +220,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {customers.slice(0, 100).map((c) => {
-                  const contract = storage.getActiveContract(c.code);
-                  const budget = storage.getBudgetForCustomer(c.code);
-                  const util = budget?.utilizationPercentage || 0;
+                {customerRows.map(({customer:c,contract,budget,util}) => {
 
                   return (
                     <tr key={c.code} className="hover:bg-slate-50">
@@ -362,8 +243,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         )}
 
         {reportType === 'EXPENSES_BY_CATEGORY' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="report-table-wrap">
+            <table aria-label={reportTitles[reportType]} className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-2.5 px-3">{t.category}</th>
@@ -391,8 +272,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         )}
 
         {reportType === 'TRANSACTION_AUDIT' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="report-table-wrap">
+            <table aria-label={reportTitles[reportType]} className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold">
                   <th className="py-2 px-3">{t.txnId}</th>
@@ -406,7 +287,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {transactions.slice(0, 100).map((txn) => (
+                {shownTransactions.map((txn) => (
                   <tr key={txn.id} className="hover:bg-slate-50">
                     <td className="py-2 px-3 font-mono font-bold text-slate-800">{txn.id}</td>
                     <td className="py-2 px-2 text-slate-600">{txn.date}</td>
@@ -423,14 +304,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         )}
 
-        {/* Report Footer */}
-        <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
-          <span>MKT Customer Budget Management System • Report Signature</span>
-          <span>Certified Confidential Marketing Data</span>
-        </div>
-
-      </div>
-
-    </div>
-  );
+      {((reportType==='CUSTOMER_BALANCES'&&customers.length===0)||(reportType==='EXPENSES_BY_CATEGORY'&&Object.keys(metrics.categoryUsage).length===0)||(reportType==='TRANSACTION_AUDIT'&&transactions.length===0))&&<p className="report-empty">{lang==='lo'?'ຍັງບໍ່ມີຂໍ້ມູນລາຍງານໃນຂອບເຂດນີ້':'No report records in this scope'}</p>}
+      {rowCount>0&&<p className="report-row-count">{lang==='lo'?`ສະແດງ ${Math.min(rowLimit,rowCount)} ຈາກ ${rowCount} ລາຍການ · CSV ມີຂໍ້ມູນທັງໝົດ`:`Showing ${Math.min(rowLimit,rowCount)} of ${rowCount} records · CSV includes all records`}</p>}
+      {rowCount>rowLimit&&<button type="button" className="report-show-more no-print" onClick={()=>setRowLimit(limit=>limit+100)}>{lang==='lo'?'ເບິ່ງເພີ່ມ':'Show more'}</button>}
+      <div className="report-footer"><span>MKT Budget Management</span><span>{lang==='lo'?'ລາຍງານງົບປະມານການຕະຫຼາດ':'Marketing budget report'}</span></div>
+    </section>
+  </div>;
 };

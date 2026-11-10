@@ -101,7 +101,7 @@ jobs:
                 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
                 assert.equal(hash(live), hash(expected), 'Live asset differs: ' + name);
               }
-              const branding = ['manifest.webmanifest', 'beerlao-budget-logo.webp', 'beerlao-budget-192.png', 'beerlao-budget-512.png', 'beerlao-budget-maskable-512.png', 'beerlao-budget-apple-touch.png'];
+              const branding = ['manifest.webmanifest', ...(await readdir('dist')).filter(name => name.startsWith('beerlao-budget-') && /\.(png|webp)$/.test(name))];
               for (const name of branding) {
                 const assetUrl = new URL(name, base);
                 assetUrl.searchParams.set('verify', process.env.GITHUB_SHA);
