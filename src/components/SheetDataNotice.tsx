@@ -12,6 +12,7 @@ export function SheetDataNotice(){
   useEffect(()=>storage.subscribe(()=>{setState({...storage.getSheetDataState()});setWrite(storage.getBusinessWriteState());setPublication(storage.getSheetPublishState());}),[]);
   if(!storage.getSettings().appsScriptUrl)return null;
   const lang=storage.getSettings().language;
+  const compact=state.status==='loaded'&&!backupError&&!publication.pending&&write.status!=='error';
   const load=async()=>{
     setBackupError('');
     const dirty=storage.hasUnsyncedBusinessData();
@@ -41,10 +42,10 @@ export function SheetDataNotice(){
       const data=storage.getLocalRecoveryBackup();if(!data)return;
       const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`FOC-recovery-${data.id}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }}>{lang==='lo'?'ດາວໂຫຼດສຳຮອງຂໍ້ມູນເກົ່າ':'Download old data backup'}</button>}
-    <div className={`mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-xs ${state.status==='error'||state.status==='local'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-white text-slate-600'}`}>
-    <p role={state.status==='error'?'alert':'status'} className="min-w-0 flex-1">{backendMessage(backupError || state.message || (lang==='lo'?'ຂໍ້ມູນລູກຄ້າຈາກ Google Sheet':'Customer data from Google Sheets'),storage.getSettings().appsScriptUrl)}</p>
-    <button type="button" onClick={load} disabled={!!publication.pending||state.status==='loading'||write.status==='saving'||write.pending&&!storage.hasUnsyncedBusinessData()} className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 font-semibold disabled:opacity-50">
-      <RefreshCw className={`h-4 w-4 ${state.status==='loading'?'animate-spin':''}`} />{isSupabaseBackend(storage.getSettings().appsScriptUrl)?(lang==='lo'?'ໂຫຼດຈາກ Supabase':'Load from Supabase'):(lang==='lo'?'ໂຫຼດຈາກ Sheet':'Load from Sheet')}
+    <div data-sync-status={compact?'loaded':state.status} className={`gold-sync-notice mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-xs ${state.status==='error'||state.status==='local'?'border-amber-200 bg-amber-50 text-amber-900':'border-slate-200 bg-white text-slate-600'}`}>
+    <p role={state.status==='error'?'alert':'status'} className="min-w-0 flex-1">{compact?(lang==='lo'?'ໂຫຼດຂໍ້ມູນແລ້ວ':'Data loaded'):backendMessage(backupError || state.message || (lang==='lo'?'ຂໍ້ມູນລູກຄ້າຈາກ Google Sheet':'Customer data from Google Sheets'),storage.getSettings().appsScriptUrl)}</p>
+    <button type="button" aria-label={lang==='lo'?'ໂຫຼດຂໍ້ມູນຫຼ້າສຸດ':'Refresh data'} title={lang==='lo'?'ໂຫຼດຂໍ້ມູນຫຼ້າສຸດ':'Refresh data'} onClick={load} disabled={!!publication.pending||state.status==='loading'||write.status==='saving'||write.pending&&!storage.hasUnsyncedBusinessData()} className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 font-semibold disabled:opacity-50">
+      <RefreshCw className={`h-4 w-4 ${state.status==='loading'?'animate-spin':''}`} /><span className={compact?'sr-only':''}>{isSupabaseBackend(storage.getSettings().appsScriptUrl)?(lang==='lo'?'ໂຫຼດຈາກ Supabase':'Load from Supabase'):(lang==='lo'?'ໂຫຼດຈາກ Sheet':'Load from Sheet')}</span>
     </button>
     {state.status==='error'&&!isSupabaseBackend(storage.getSettings().appsScriptUrl)&&storage.getCurrentUser()?.role==='ADMIN'&&<a href="https://raw.githubusercontent.com/phetsamoneken-spec/foc-support/main/gas/Code.gs" target="_blank" rel="noreferrer" className="font-semibold text-blue-700 underline">Code.gs</a>}
   </div></>;

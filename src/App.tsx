@@ -6,7 +6,11 @@
  * Teams B1 - B7
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { MotionConfig } from 'motion/react';
+import { BottomNavigation } from './components/BottomNavigation';
+import { PersonalSettings } from './components/PersonalSettings';
+import { useGoldAppearance } from './components/GoldAppearance';
 import { useDashboardTheme } from './components/ThemeSwitcher';
 import { storage } from './services/storage';
 import { startSheetAutoRefresh } from './services/sheetAutoRefresh';
@@ -23,22 +27,23 @@ import { SaveSuccessToast } from './components/SaveSuccessToast';
 // Views
 import { LoginView } from './views/LoginView';
 import { DashboardView } from './views/DashboardView';
-import { CustomersView } from './views/CustomersView';
-import { BudgetManagementView } from './views/BudgetManagementView';
-import { TransactionsView } from './views/TransactionsView';
-import { ContractManagementView } from './views/ContractManagementView';
-import { ReportsView } from './views/ReportsView';
-import { UsersView } from './views/UsersView';
-import { SettingsView } from './views/SettingsView';
+const CustomersView=lazy(()=>import('./views/CustomersView').then(module=>({default:module.CustomersView})));
+const BudgetManagementView=lazy(()=>import('./views/BudgetManagementView').then(module=>({default:module.BudgetManagementView})));
+const TransactionsView=lazy(()=>import('./views/TransactionsView').then(module=>({default:module.TransactionsView})));
+const ContractManagementView=lazy(()=>import('./views/ContractManagementView').then(module=>({default:module.ContractManagementView})));
+const ReportsView=lazy(()=>import('./views/ReportsView').then(module=>({default:module.ReportsView})));
+const UsersView=lazy(()=>import('./views/UsersView').then(module=>({default:module.UsersView})));
+const SettingsView=lazy(()=>import('./views/SettingsView').then(module=>({default:module.SettingsView})));
 
 // Modals
-import { CustomerDetailModal } from './views/CustomerDetailModal';
-import { AddTransactionModal } from './views/AddTransactionModal';
-import { AddContractModal } from './views/AddContractModal';
-import { AddCustomerModal } from './views/AddCustomerModal';
-import { GasDocsModal } from './views/GasDocsModal';
+const CustomerDetailModal=lazy(()=>import('./views/CustomerDetailModal').then(module=>({default:module.CustomerDetailModal})));
+const AddTransactionModal=lazy(()=>import('./views/AddTransactionModal').then(module=>({default:module.AddTransactionModal})));
+const AddContractModal=lazy(()=>import('./views/AddContractModal').then(module=>({default:module.AddContractModal})));
+const AddCustomerModal=lazy(()=>import('./views/AddCustomerModal').then(module=>({default:module.AddCustomerModal})));
+const GasDocsModal=lazy(()=>import('./views/GasDocsModal').then(module=>({default:module.GasDocsModal})));
 
 export default function App() {
+  const goldAppearance=useGoldAppearance();
   const [currentUser, setCurrentUser] = useState<User | null>(storage.getCurrentUser());
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [selectedTeam, setSelectedTeam] = useState<Team | 'ALL'>('ALL');
@@ -47,7 +52,7 @@ export default function App() {
   const backendUrl=storage.getSettings().appsScriptUrl;
   const sharedTheme=storage.getSettings().dashboardTheme;
   useEffect(()=>{if(sharedTheme)setTheme(sharedTheme);},[currentUser?.id,sharedTheme]);
-  useEffect(()=>{if(currentUser?.role!=='ADMIN'&&['settings','users'].includes(currentView))setCurrentView('dashboard');},[currentUser?.role,currentView]);
+  useEffect(()=>{if(currentUser?.role!=='ADMIN'&&currentView==='users')setCurrentView('dashboard');},[currentUser?.role,currentView]);
   useEffect(()=>{
     const refresh=async()=>{
       storage.refreshBudgetCalendar();
@@ -94,7 +99,7 @@ export default function App() {
   // Not logged in -> Show Login
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+      <div className="beerlao-gold gold-login-shell min-h-screen font-sans">
         <LoginView />
         <OfflineIndicator language="lo" />
       </div>
@@ -116,7 +121,7 @@ export default function App() {
   };
 
   return (
-    <div className={`mkt-shell theme-${isAdmin?theme:(sharedTheme||'glass')} min-h-screen flex flex-col font-sans`}>
+    <MotionConfig reducedMotion="user"><div className={`mkt-shell ${goldAppearance?'beerlao-gold':''} theme-${isAdmin?theme:(sharedTheme||'glass')} min-h-screen flex flex-col font-sans`}>
       <SaveSuccessToast userId={currentUser.id} language={lang} />
       
       {/* Global Header */}
@@ -144,6 +149,7 @@ export default function App() {
         {/* Main Content Area */}
         <main className="mkt-main flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto">
           <SheetDataNotice />
+          <Suspense fallback={<div className="gold-view-loading" role="status"><span className="gold-loading-spinner"/>{lang==='lo'?'ກຳລັງໂຫຼດ…':'Loading…'}</div>}>
           {currentView === 'dashboard' && (
             <DashboardView
               selectedTeam={selectedTeam}
@@ -166,6 +172,7 @@ export default function App() {
 
           {currentView === 'budgets' && (
             <BudgetManagementView
+              onOpenAddContract={()=>handleOpenAddContract()}
               selectedTeam={selectedTeam}
               onSelectTeam={setSelectedTeam}
               onOpenCustomerDetail={(code) => setDetailCustomerCode(code)}
@@ -202,6 +209,7 @@ export default function App() {
             <UsersView />
           )}
 
+          {currentView === 'settings' && !isAdmin && <PersonalSettings/>}
           {currentView === 'settings' && isAdmin && (
             <SettingsView
               theme={theme}
@@ -209,13 +217,17 @@ export default function App() {
               onOpenGasDocs={() => setShowGasDocsModal(true)}
             />
           )}
+          </Suspense>
         </main>
       </div>
+
+      <BottomNavigation currentView={currentView} onNavigate={(view)=>{setCurrentView(view);setNavigationOpen(false);window.scrollTo({top:0,behavior:'instant'});}} language={lang}/>
 
       {/* Offline Alert Indicator */}
       <OfflineIndicator language={lang} />
 
       {/* Modals */}
+      <Suspense fallback={<div className="gold-modal-loading" role="status"><span className="gold-loading-spinner"/>{lang==='lo'?'ກຳລັງໂຫຼດ…':'Loading…'}</div>}>
       {detailCustomerCode && (
         <CustomerDetailModal
           customerCode={detailCustomerCode}
@@ -272,6 +284,7 @@ export default function App() {
         />
       )}
 
-    </div>
+      </Suspense>
+    </div></MotionConfig>
   );
 }

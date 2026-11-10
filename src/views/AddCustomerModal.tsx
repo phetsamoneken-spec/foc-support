@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import {useModalDialog} from '../hooks/useModalDialog';
+import {ActionButton} from '../components/ActionButton';
 import {
   X,
   UserPlus,
@@ -64,12 +66,15 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     setAnnualBudget(qty * pricePerCrate);
   };
 
+  const savingRef=useRef(false);
   const [isSaving,setIsSaving]=useState(false);
+  const modalRef=useModalDialog(onClose,isSaving);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(isSaving)return;
+    if(savingRef.current)return;
     setErrorMessage(null);
 
+    savingRef.current=true;
     setIsSaving(true);
     const payload:Record<string,unknown>={
       code,
@@ -86,19 +91,20 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
       province
     };
     if(editing&&!isAdmin)for(const key of ['conditionQty','conditionUOM','conditionProductDescription','commencingOn','expiringOn','annualBudget'])delete payload[key];
-    const res=await storage.commitBusinessChange(editing?'UPDATE_CUSTOMER':'ADD_CUSTOMER',payload);
-
-    setIsSaving(false);
+    let res:{success:boolean;message?:string};
+    try {res=await storage.commitBusinessChange(editing?'UPDATE_CUSTOMER':'ADD_CUSTOMER',payload);}
+    catch(error){res={success:false,message:error instanceof Error?error.message:String(error)};}
+    finally{savingRef.current=false;setIsSaving(false);}
     if (res.success) {
       onSuccess();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(res.message || (lang==='lo'?'ບໍ່ສາມາດບັນທຶກໄດ້':'Unable to save'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden my-8 animate-in fade-in zoom-in-95">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label={lang==='lo'?'ເພີ່ມລູກຄ້າ':'Add customer'} className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden my-8 animate-in fade-in zoom-in-95">
         
         {/* Header */}
         <div className="bg-slate-900 p-5 text-white flex items-center justify-between">
@@ -118,6 +124,8 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
           <button
             onClick={onClose}
+            aria-label={lang==='lo'?'ປິດ':'Close'}
+            disabled={isSaving}
             className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -128,7 +136,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
           
           {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
               {errorMessage}
             </div>
           )}
@@ -163,10 +171,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addcustomermodal-field-1" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.customerCode} <span className="text-rose-500">*</span>
               </label>
-              <input
+              <input id="addcustomermodal-field-1"
                 type="text"
                 required
                 readOnly={editing}
@@ -177,10 +185,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addcustomermodal-field-2" className="block text-xs font-semibold text-slate-700 mb-1">
                 {lang === 'lo' ? 'ເບີໂທລະສັບ' : 'Phone'}
               </label>
-              <input
+              <input id="addcustomermodal-field-2"
                 type="text"
                 placeholder="+856 20 ..."
                 value={phone}
@@ -191,10 +199,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="addcustomermodal-field-3" className="block text-xs font-semibold text-slate-700 mb-1">
               {t.customerName} <span className="text-rose-500">*</span>
             </label>
-            <input
+            <input id="addcustomermodal-field-3"
               type="text"
               required
               placeholder={lang === 'lo' ? 'ເຊັ່ນ: ຮ້ານອາຫານ ດາວເຮືອງ ສາຂາ 1' : 'Customer / Store name'}
@@ -213,10 +221,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="addcustomermodal-field-4" className="block text-xs font-semibold text-slate-700 mb-1">
                   {t.conditionProduct} <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <input id="addcustomermodal-field-4"
                   type="text"
                   required
                   disabled={editing&&!isAdmin}
@@ -256,10 +264,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
           {/* Contract Dates & Initial Budget */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addcustomermodal-field-5" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.commencingOn} <span className="text-rose-500">*</span>
               </label>
-              <input
+              <input id="addcustomermodal-field-5"
                 type="date"
                 required
                 readOnly={editing}
@@ -270,10 +278,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addcustomermodal-field-6" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.expiringOn} <span className="text-rose-500">*</span>
               </label>
-              <input
+              <input id="addcustomermodal-field-6"
                 type="date"
                 required
                 readOnly={editing}
@@ -284,10 +292,10 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addcustomermodal-field-7" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.annualBudget} ({settings.currencySymbol}) <span className="text-rose-500">*</span>
               </label>
-              <input
+              <input id="addcustomermodal-field-7"
                 type="number"
                 required
                 min="0"
@@ -308,17 +316,18 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
             >
               {t.cancel}
             </button>
-            <button
+            <ActionButton
               type="submit"
-              disabled={isSaving}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition cursor-pointer active:scale-95"
+              loading={isSaving} loadingLabel={lang==='lo'?'ກຳລັງບັນທຶກ…':'Saving…'}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition cursor-pointer active:scale-95"
             >
               {lang === 'lo' ? 'ບັນທຶກລູກຄ້າໃໝ່' : 'Register Customer'}
-            </button>
+            </ActionButton>
           </div>
 
         </form>

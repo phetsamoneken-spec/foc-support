@@ -101,7 +101,16 @@ jobs:
                 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
                 assert.equal(hash(live), hash(expected), 'Live asset differs: ' + name);
               }
-              console.log('Verified live index.html and ' + assets.length + ' JavaScript/CSS files against this exact build: ' + base);
+              const branding = ['manifest.webmanifest', 'beerlao-budget-logo.webp', 'beerlao-budget-192.png', 'beerlao-budget-512.png', 'beerlao-budget-maskable-512.png', 'beerlao-budget-apple-touch.png'];
+              for (const name of branding) {
+                const assetUrl = new URL(name, base);
+                assetUrl.searchParams.set('verify', process.env.GITHUB_SHA);
+                const response = await fetch(assetUrl, { cache: 'no-store' });
+                assert.equal(response.status, 200, name);
+                const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+                assert.equal(hash(Buffer.from(await response.arrayBuffer())), hash(await readFile('dist/' + name)), 'Live branding differs: ' + name);
+              }
+              console.log('Verified live HTML, compiled assets, manifest and Beerlao logo/icons against this exact build: ' + base);
               process.exit(0);
             } catch (error) {
               lastError = error;

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { storage } from '../services/storage';
 import { translations, Language } from '../locales/translations';
+import { BrandLogo } from './BrandLogo';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface SidebarProps {
@@ -118,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'settings',
       label: t.navSettings,
       icon: Settings,
-      adminOnly: true
+      adminOnly: false
     }
   ];
 
@@ -157,9 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Drawer header and close button */}
           <div className="flex items-center justify-between px-2 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
-                MKT
-              </div>
+              <BrandLogo size={36} decorative/>
               <div>
                 <p className="font-bold text-white text-sm leading-tight">{t.appName}</p>
                 <p className="text-[10px] text-slate-400">Teams B1 - B7</p>

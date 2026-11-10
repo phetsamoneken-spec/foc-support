@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import {useModalDialog} from '../hooks/useModalDialog';
+import {ActionButton} from '../components/ActionButton';
 import {
   X,
   PlusCircle,
@@ -69,10 +71,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     'Other'
   ];
 
+  const savingRef=useRef(false);
   const [isSaving,setIsSaving]=useState(false);
+  const modalRef=useModalDialog(onClose,isSaving);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(isSaving)return;
+    if(savingRef.current)return;
     setErrorMessage(null);
 
     if (!customerCode) {
@@ -96,8 +100,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
     if(!budget){setErrorMessage(lang==='lo'?'ວັນທີລາຍຈ່າຍຢູ່ນອກໄລຍະສັນຍາ':'Transaction date is outside the contract');return;}
 
+    savingRef.current=true;
     setIsSaving(true);
-    const res = await storage.commitBusinessChange('ADD_TRANSACTION',{
+    let res:{success:boolean;message?:string};
+    try {
+      res = await storage.commitBusinessChange('ADD_TRANSACTION',{
       customerCode,
       category,
       description,
@@ -107,18 +114,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       allowException: isAdmin ? allowException : false,
       exceptionReason: allowException ? exceptionReason : undefined
     });
+    } catch (error) {res={success:false,message:error instanceof Error?error.message:String(error)};} finally {savingRef.current=false;setIsSaving(false);}
 
-    setIsSaving(false);
     if (res.success) {
       onSuccess();
     } else {
-      setErrorMessage(res.message);
+      setErrorMessage(res.message || (lang==='lo'?'ບໍ່ສາມາດບັນທຶກໄດ້':'Unable to save'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden my-8 animate-in fade-in zoom-in-95">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label={t.newTransaction} className="w-full max-w-xl rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden my-8 animate-in fade-in zoom-in-95">
         
         {/* Header */}
         <div className="bg-slate-900 p-5 text-white flex items-center justify-between">
@@ -138,6 +145,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
           <button
             onClick={onClose}
+            aria-label={lang==='lo'?'ປິດ':'Close'}
+            disabled={isSaving}
             className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -151,7 +160,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           </p>}
           
           {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
@@ -159,10 +168,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
           {/* Customer Selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="addtransactionmodal-field-1" className="block text-xs font-semibold text-slate-700 mb-1">
               {t.customerName} <span className="text-rose-500">*</span>
             </label>
-            <select
+            <select id="addtransactionmodal-field-1"
               required
               value={customerCode}
               onChange={(e) => setCustomerCode(e.target.value)}
@@ -206,10 +215,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           {/* Category & Amount */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addtransactionmodal-field-2" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.category} <span className="text-rose-500">*</span>
               </label>
-              <select
+              <select id="addtransactionmodal-field-2"
                 required
                 value={category}
                 onChange={(e) => setCategory(e.target.value as TransactionCategory)}
@@ -224,10 +233,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addtransactionmodal-field-3" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.amount} ({settings.currencySymbol}) <span className="text-rose-500">*</span>
               </label>
-              <input
+              <input id="addtransactionmodal-field-3"
                 type="number"
                 required
                 min="0"
@@ -242,10 +251,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label htmlFor="addtransactionmodal-field-4" className="block text-xs font-semibold text-slate-700 mb-1">
               {t.description} <span className="text-rose-500">*</span>
             </label>
-            <input
+            <input id="addtransactionmodal-field-4"
               type="text"
               required
               placeholder={lang === 'lo' ? 'ເຊັ່ນ: ຜະລິດປ້າຍໄຟ LED, ຈັດບູດໂປຣໂມຊັ່ນ...' : 'e.g. POSM Signboard fabrication, Booth activation...'}
@@ -258,10 +267,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
           {/* Date & Invoice Ref */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addtransactionmodal-field-5" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.date}
               </label>
-              <input
+              <input id="addtransactionmodal-field-5"
                 type="date"
                 required
                 value={date}
@@ -271,10 +280,10 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label htmlFor="addtransactionmodal-field-6" className="block text-xs font-semibold text-slate-700 mb-1">
                 {t.invoiceRef}
               </label>
-              <input
+              <input id="addtransactionmodal-field-6"
                 type="text"
                 placeholder="INV-2026-0012"
                 value={invoiceRef}
@@ -304,6 +313,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                   type="text"
                   required
                   placeholder={lang === 'lo' ? 'ລະບຸເຫດຜົນການອະນຸມັດພິເສດ...' : 'Enter authorization reason...'}
+                  aria-label={lang==='lo'?'ເຫດຜົນອະນຸມັດ':'Authorization reason'}
                   value={exceptionReason}
                   onChange={(e) => setExceptionReason(e.target.value)}
                   className="w-full p-2 bg-white border border-amber-300 rounded-lg text-xs text-slate-800"
@@ -317,17 +327,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
             >
               {t.cancel}
             </button>
-            <button
+            <ActionButton
               type="submit"
-              disabled={isSaving}
-              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition cursor-pointer active:scale-95"
+              loading={isSaving} loadingLabel={lang==='lo'?'ກຳລັງບັນທຶກ…':'Saving…'}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition cursor-pointer active:scale-95"
             >
               {t.save}
-            </button>
+            </ActionButton>
           </div>
 
         </form>

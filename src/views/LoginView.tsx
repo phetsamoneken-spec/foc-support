@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { BrandLogo } from '../components/BrandLogo';
 import { storage } from '../services/storage';
 import { translations, Language } from '../locales/translations';
 
@@ -17,17 +18,17 @@ export const LoginView: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(signingIn)return;
     setError(null);
     setSigningIn(true);
-    const res = await storage.login(username, password);
-    setSigningIn(false);
-    if (!res.success) {
-      setError(res.message || 'Login failed');
-    }
+    try {
+      const res = await storage.login(username, password);
+      if (!res.success) setError(res.message || 'Login failed');
+    } catch { setError(lang==='lo'?'ບໍ່ສາມາດເຂົ້າລະບົບໄດ້. ກະລຸນາລອງໃໝ່.':'Unable to sign in. Please try again.'); } finally {setSigningIn(false);}
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="gold-login min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background subtle mesh gradients */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -35,11 +36,7 @@ export const LoginView: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
         {/* Brand Crest */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-emerald-500 p-1 shadow-2xl flex items-center justify-center">
-            <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center font-black text-blue-400 text-2xl">
-              MKT
-            </div>
-          </div>
+          <BrandLogo size={96}/>
         </div>
 
         <h2 className="mt-5 text-center text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
@@ -55,7 +52,7 @@ export const LoginView: React.FC = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
         <div className="bg-slate-900 py-8 px-6 shadow-2xl rounded-3xl border border-slate-800 sm:px-10">
           {error && (
-            <div className="mb-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <div role="alert" className="mb-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
               <span>{error}</span>
             </div>
@@ -72,6 +69,8 @@ export const LoginView: React.FC = () => {
                 </div>
                 <input
                   type="text"
+                  autoComplete="username"
+                  aria-label={lang==='lo'?'ຊື່ຜູ້ໃຊ້':'Username'}
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -90,6 +89,8 @@ export const LoginView: React.FC = () => {
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
+                  autoComplete="current-password"
+                  aria-label={lang==='lo'?'ລະຫັດຜ່ານ':'Password'}
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
@@ -118,7 +119,7 @@ export const LoginView: React.FC = () => {
               className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition cursor-pointer active:scale-[0.98]"
             >
               <span>{signingIn ? 'Signing in…' : t.login}</span>
-              <ArrowRight className="w-4 h-4" />
+              {signingIn?<span className="gold-loading-spinner" aria-hidden="true"/>:<ArrowRight className="w-4 h-4" />}
             </button>
           </form>
         </div>

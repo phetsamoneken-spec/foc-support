@@ -12,32 +12,32 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg', 'beerlao-budget-logo.webp', 'beerlao-budget-192.png', 'beerlao-budget-512.png', 'beerlao-budget-maskable-512.png', 'beerlao-budget-apple-touch.png'],
         manifest: {
           id: './',
           name: 'MKT Budget Management',
           short_name: 'MKT Budget',
           description: 'MKT Customer Budget Management Web App (ລະບົບຄຸ້ມຄອງງົບປະມານລູກຄ້າ) for Teams B1-B7',
-          theme_color: '#0f172a',
-          background_color: '#0f172a',
+          theme_color: '#FFC400',
+          background_color: '#FFF8E7',
           display: 'standalone',
           start_url: './',
           scope: './',
           icons: [
             {
-              src: 'pwa-192x192.png',
+              src: 'beerlao-budget-192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: 'pwa-512x512.png',
+              src: 'beerlao-budget-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: 'pwa-maskable-512x512.png',
+              src: 'beerlao-budget-maskable-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -46,7 +46,7 @@ export default defineConfig(() => {
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,woff,woff2}'],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
