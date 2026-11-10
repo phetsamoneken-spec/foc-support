@@ -276,3 +276,35 @@ button[aria-busy=true] {cursor:progress!important;}
 /* Approved Beerlao app artwork; explicit dimensions reserve layout space. */
 .brand-logo {display:block;object-fit:contain;flex-shrink:0;border-radius:22%;box-shadow:0 2px 6px #6b480014;}
 .gold-login .brand-logo {box-shadow:0 5px 16px #6b480019;}
+
+/* Sign-in owns its colors so generic legacy panel rules cannot darken the form. */
+.beerlao-gold .gold-login {min-height:100svh;display:flex;align-items:center;justify-content:center;padding:24px 16px;background:radial-gradient(ellipse at 18% 0,#ffdf6b55,transparent 65%),#FFF8E7;color:#172018;}
+.login-content {width:100%;max-width:400px;display:grid;gap:20px;}
+.login-brand {text-align:center;}
+.login-brand .brand-logo {margin:0 auto;}
+.login-brand h1 {margin:16px 0 7px;font-size:22px;font-weight:800;line-height:1.6;overflow-wrap:anywhere;}
+.login-brand p {margin:0;color:#56634F;font-size:12px;line-height:1.7;}
+.beerlao-gold .gold-login .login-panel {background:#FFFFFF;border:1px solid #E5D9B7;border-radius:20px;padding:24px;box-shadow:0 8px 28px #7750000c;}
+.login-form {display:grid;gap:18px;}
+.beerlao-gold .gold-login .login-form label {display:block;margin-bottom:7px;color:#263D2A;font-size:13px;font-weight:700;line-height:1.6;}
+.login-field {position:relative;display:flex;align-items:center;min-width:0;}
+.login-field>svg {position:absolute;left:14px;z-index:1;color:#65765E;pointer-events:none;}
+.beerlao-gold .gold-login .login-field input {width:100%;min-width:0;height:50px;padding:12px 44px 12px 42px;border:1px solid #D7CFB5;border-radius:12px;background:#FFFCF4;color:#172018;font-size:16px;line-height:1.5;}
+.login-field input::placeholder {color:#66725F;opacity:1;}
+.beerlao-gold .gold-login .login-field input:-webkit-autofill { -webkit-text-fill-color:#172018;-webkit-box-shadow:0 0 0 1000px #FFFCF4 inset;caret-color:#172018;}
+.beerlao-gold .gold-login .login-password-toggle {position:absolute;right:3px;top:3px;display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;border-radius:10px;color:#43583D;background:transparent;}
+.beerlao-gold .gold-login .login-password-toggle:hover {background:#FFF0B6;}
+.beerlao-gold .gold-login .login-submit {display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:48px;margin-top:2px;padding:12px 16px;border:1px solid #076A2E;border-radius:12px;background:#087C35;color:#FFFFFF;font-size:14px;font-weight:750;line-height:1.6;box-shadow:0 3px 0 #075D2524;}
+.beerlao-gold .gold-login .login-submit:hover {background:#06682D;}
+.beerlao-gold .gold-login .login-submit:disabled {opacity:1;color:#FFFFFF;background:#416A4E;border-color:#416A4E;cursor:progress;}
+.login-error {display:flex;align-items:flex-start;gap:8px;margin-bottom:18px;padding:12px;border:1px solid #EDB6AF;border-radius:12px;background:#FFF1EF;color:#A1241D;font-size:12px;line-height:1.7;}
+.login-error svg {flex-shrink:0;margin-top:2px;}
+.login-install {padding-inline:12px;text-align:center;}
+.login-install>p {margin:10px 0 0;color:#58664F;font-size:11px;line-height:1.8;}
+.beerlao-gold .pwa-install-trigger {min-height:48px;background:#087C35;color:#FFFFFF!important;border-color:#076A2E;}
+.beerlao-gold .pwa-install-trigger:hover {background:#06682D;}
+.beerlao-gold .pwa-install-trigger:disabled {opacity:1;background:#416A4E;color:#FFFFFF!important;}
+.pwa-installed-status {min-height:44px;}
+.pwa-guide-panel button:focus-visible {outline:3px solid #087C35;outline-offset:3px;}
+@media(max-width:380px){.login-content{gap:16px;}.login-brand h1{font-size:20px;}.beerlao-gold .gold-login .login-panel{padding:20px;}}
+@media(max-height:720px){.beerlao-gold .gold-login{padding-top:16px;padding-bottom:16px;}.login-brand .brand-logo{width:64px;height:64px;}.login-brand h1{margin-top:10px;}.login-content{gap:16px;}}

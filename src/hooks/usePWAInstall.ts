@@ -1,62 +1,47 @@
-import { useEffect, useState } from 'react';
+import {useSyncExternalStore} from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+  prompt:()=>Promise<void>;
+  userChoice:Promise<{outcome:'accepted'|'dismissed';platform:string}>;
 }
+const hasWindow=typeof window!=='undefined';
+const userAgent=hasWindow?navigator.userAgent.toLowerCase():'';
+const isIOS=/iphone|ipad|ipod/.test(userAgent)||(hasWindow&&/macintosh/.test(userAgent)&&navigator.maxTouchPoints>1);
+const displayMode=hasWindow?window.matchMedia('(display-mode: standalone)'):null;
+const standalone=()=>Boolean(displayMode?.matches||(hasWindow&&(navigator as Navigator&{standalone?:boolean}).standalone));
+let deferredPrompt:BeforeInstallPromptEvent|null=null;
+let inFlight:Promise<boolean>|null=null;
+let state={isInstalled:standalone(),isIOS,isAndroid:/android/.test(userAgent),isInstallable:false,isInstalling:false,installFailed:false};
+const listeners=new Set<()=>void>();
+const publish=(changes:Partial<typeof state>)=>{state={...state,...changes};listeners.forEach(listener=>listener());};
 
-export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-
-  useEffect(() => {
-    // Detect standalone mode (already installed)
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-    setIsInstalled(isStandalone);
-
-    // Detect iOS devices
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-    setIsIOS(isIOSDevice);
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const install = async () => {
-    if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-      return true;
-    }
-    return false;
-  };
-
-  return {
-    isInstallable: !!deferredPrompt,
-    isInstalled,
-    isIOS,
-    install,
-  };
+// The prompt belongs to the app, so signing in or changing screens cannot lose it.
+if(hasWindow){
+  window.addEventListener('beforeinstallprompt',(event:Event)=>{
+    event.preventDefault();deferredPrompt=event as BeforeInstallPromptEvent;
+    publish({isInstallable:true,installFailed:false});
+  });
+  window.addEventListener('appinstalled',()=>{deferredPrompt=null;publish({isInstalled:true,isInstallable:false,installFailed:false});});
+  displayMode?.addEventListener?.('change',()=>publish({isInstalled:standalone()}));
+}
+const subscribe=(listener:()=>void)=>{listeners.add(listener);return()=>{listeners.delete(listener);};};
+const getSnapshot=()=>state;
+async function install(){
+  if(inFlight)return inFlight;
+  const prompt=deferredPrompt;if(!prompt||state.isInstalling)return false;
+  deferredPrompt=null;publish({isInstalling:true,isInstallable:false,installFailed:false});
+  const operation=(async()=>{
+    try{
+      await prompt.prompt();const {outcome}=await prompt.userChoice;
+      if(outcome==='accepted'){publish({isInstalled:true});return true;}
+      return false;
+    }catch{publish({installFailed:true});return false;}
+    finally{publish({isInstalling:false});}
+  })();
+  inFlight=operation;
+  try{return await operation;}finally{if(inFlight===operation)inFlight=null;}
+}
+export function usePWAInstall(){
+  const snapshot=useSyncExternalStore(subscribe,getSnapshot,getSnapshot);
+  return {...snapshot,install};
 }
