@@ -497,3 +497,12 @@ button[aria-busy=true] {cursor:progress!important;}
  .employee-table .employee-identity {flex-wrap:wrap;}
 }
 @media (prefers-reduced-motion:reduce) {.account-dialog-layer * {animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+
+/* Match Super MDE's compact fullscreen toolbar on phones.
+   Browser tabs, standalone/iOS and wider layouts retain their full safe area. */
+@media screen and (display-mode:fullscreen) {
+ html,body,#root {background-color:#FFC400;}
+}
+@media screen and (max-width:639px) and (display-mode:fullscreen) {
+ .mkt-shell .gold-header {padding-top:min(var(--app-safe-top),12px);}
+}
