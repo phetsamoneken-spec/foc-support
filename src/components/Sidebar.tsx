@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { storage } from '../services/storage';
 import { translations, Language } from '../locales/translations';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SidebarProps {
   currentView: string;
@@ -236,7 +237,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Footer info in sidebar */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
+        <div className="shrink-0 space-y-3 p-4 border-t border-slate-800/80 bg-slate-950/40">
+          <PWAInstallButton language={lang} onOpenGuide={()=>setNavigationOpen(false)} />
           <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>PWA v{APP_VERSION}</span>
             <span className="flex items-center gap-1 text-emerald-400 font-medium">

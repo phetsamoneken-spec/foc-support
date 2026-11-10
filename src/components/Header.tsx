@@ -14,7 +14,6 @@ import {
 import { storage } from '../services/storage';
 import {GasService} from '../services/gasService';
 import { translations, Language } from '../locales/translations';
-import { PWAInstallButton } from './PWAInstallButton';
 import { Team, TEAMS } from '../types';
 import { EditProfileModal } from './EditProfileModal';
 
@@ -141,9 +140,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>GAS Backend</span>
               </button>
             )}
-
-            {/* PWA Install Button */}
-            <PWAInstallButton language={lang} />
 
             {/* Language Switcher */}
             {isAdmin && <button
