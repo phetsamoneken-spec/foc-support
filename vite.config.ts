@@ -20,7 +20,7 @@ export default defineConfig(() => {
           description: 'MKT Customer Budget Management Web App (ລະບົບຄຸ້ມຄອງງົບປະມານລູກຄ້າ) for Teams B1-B7',
           theme_color: '#FFC400',
           background_color: '#FFF8E7',
-          display: 'standalone',
+          display: 'fullscreen',
           start_url: './',
           scope: './',
           icons: [

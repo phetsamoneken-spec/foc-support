@@ -8,10 +8,13 @@ const hasWindow=typeof window!=='undefined';
 const userAgent=hasWindow?navigator.userAgent.toLowerCase():'';
 const isIOS=/iphone|ipad|ipod/.test(userAgent)||(hasWindow&&/macintosh/.test(userAgent)&&navigator.maxTouchPoints>1);
 const displayMode=hasWindow?window.matchMedia('(display-mode: standalone)'):null;
-const standalone=()=>Boolean(displayMode?.matches||(hasWindow&&(navigator as Navigator&{standalone?:boolean}).standalone));
+const fullscreenMode=hasWindow?window.matchMedia('(display-mode: fullscreen)'):null;
+// A native fullscreen PWA is installed; fullscreen requested by a browser tab is not.
+const installedDisplay=()=>Boolean(displayMode?.matches||(fullscreenMode?.matches&&hasWindow&&!document.fullscreenElement)||(hasWindow&&(navigator as Navigator&{standalone?:boolean}).standalone));
+let installationAcknowledged=installedDisplay();
 let deferredPrompt:BeforeInstallPromptEvent|null=null;
 let inFlight:Promise<boolean>|null=null;
-let state={isInstalled:standalone(),isIOS,isAndroid:/android/.test(userAgent),isInstallable:false,isInstalling:false,installFailed:false};
+let state={isInstalled:installationAcknowledged,isIOS,isAndroid:/android/.test(userAgent),isInstallable:false,isInstalling:false,installFailed:false};
 const listeners=new Set<()=>void>();
 const publish=(changes:Partial<typeof state>)=>{state={...state,...changes};listeners.forEach(listener=>listener());};
 
@@ -21,8 +24,10 @@ if(hasWindow){
     event.preventDefault();deferredPrompt=event as BeforeInstallPromptEvent;
     publish({isInstallable:true,installFailed:false});
   });
-  window.addEventListener('appinstalled',()=>{deferredPrompt=null;publish({isInstalled:true,isInstallable:false,installFailed:false});});
-  displayMode?.addEventListener?.('change',()=>publish({isInstalled:standalone()}));
+  window.addEventListener('appinstalled',()=>{installationAcknowledged=true;deferredPrompt=null;publish({isInstalled:true,isInstallable:false,installFailed:false});});
+  const syncDisplay=()=>publish({isInstalled:installationAcknowledged||installedDisplay()});
+  displayMode?.addEventListener?.('change',syncDisplay);
+  fullscreenMode?.addEventListener?.('change',syncDisplay);
 }
 const subscribe=(listener:()=>void)=>{listeners.add(listener);return()=>{listeners.delete(listener);};};
 const getSnapshot=()=>state;
@@ -33,7 +38,7 @@ async function install(){
   const operation=(async()=>{
     try{
       await prompt.prompt();const {outcome}=await prompt.userChoice;
-      if(outcome==='accepted'){publish({isInstalled:true});return true;}
+      if(outcome==='accepted'){installationAcknowledged=true;publish({isInstalled:true});return true;}
       return false;
     }catch{publish({installFailed:true});return false;}
     finally{publish({isInstalling:false});}

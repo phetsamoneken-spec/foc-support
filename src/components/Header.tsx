@@ -1,5 +1,7 @@
 import {isSupabaseBackend,SUPABASE_DASHBOARD_URL} from '../config/supabase';
 import React, { useState } from 'react';
+import {createPortal} from 'react-dom';
+import {useModalDialog} from '../hooks/useModalDialog';
 import {
   FileSpreadsheet,
   Globe,
@@ -47,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   const alerts=metrics.expiringContracts+metrics.expiredContracts;
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const profileDialogRef=useModalDialog(()=>setShowEditProfileModal(false),false,showEditProfileModal);
 
   const toggleLanguage = async () => {
     if(!storage.canManageSettings())return;
@@ -60,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="gold-header sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-md">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="gold-header-row flex items-center justify-between h-16">
           
           {/* Navigation toggle and logo */}
           <div className="gold-header-brand flex items-center gap-3">
@@ -224,10 +227,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {showEditProfileModal && (
-        <EditProfileModal
-          onClose={() => setShowEditProfileModal(false)}
-        />
+      {showEditProfileModal && createPortal(
+        <div ref={profileDialogRef} role="dialog" aria-modal="true" aria-label={t.profile} className="beerlao-gold mkt-overlay-layer">
+          <EditProfileModal onClose={() => setShowEditProfileModal(false)} />
+        </div>,document.body
       )}
     </header>
   );

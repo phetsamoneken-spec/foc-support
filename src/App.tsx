@@ -6,7 +6,7 @@
  * Teams B1 - B7
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { MotionConfig } from 'motion/react';
 import { BottomNavigation } from './components/BottomNavigation';
 import { PersonalSettings } from './components/PersonalSettings';
@@ -44,6 +44,7 @@ const GasDocsModal=lazy(()=>import('./views/GasDocsModal').then(module=>({defaul
 
 export default function App() {
   const goldAppearance=useGoldAppearance();
+  const mainRef=useRef<HTMLElement>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(storage.getCurrentUser());
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [selectedTeam, setSelectedTeam] = useState<Team | 'ALL'>('ALL');
@@ -67,6 +68,9 @@ export default function App() {
     const stopRefresh=currentUser&&backendUrl?startSheetAutoRefresh(refresh):()=>{};
     return ()=>{window.clearInterval(calendarTimer);stopRefresh();};
   },[currentUser?.id,backendUrl]);
+
+  // Each route starts at the top of the content scroller; app bars stay in place.
+  useLayoutEffect(()=>{mainRef.current?.scrollTo({top:0,left:0,behavior:'instant'});},[currentView,currentUser?.id]);
 
   // Modal States
   const [detailCustomerCode, setDetailCustomerCode] = useState<string | null>(null);
@@ -135,7 +139,7 @@ export default function App() {
         onOpenGasDocs={() => setShowGasDocsModal(true)}
       />
 
-      <div className="flex-1 flex w-full">
+      <div className="mkt-content flex-1 flex w-full min-h-0">
         
         {/* Sidebar */}
         <Sidebar
@@ -147,7 +151,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="mkt-main flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto">
+        <main ref={mainRef} className="mkt-main flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-y-auto">
           <SheetDataNotice />
           <Suspense fallback={<div className="gold-view-loading" role="status"><span className="gold-loading-spinner"/>{lang==='lo'?'ກຳລັງໂຫຼດ…':'Loading…'}</div>}>
           {currentView === 'dashboard' && (
@@ -221,7 +225,7 @@ export default function App() {
         </main>
       </div>
 
-      <BottomNavigation currentView={currentView} onNavigate={(view)=>{setCurrentView(view);setNavigationOpen(false);window.scrollTo({top:0,behavior:'instant'});}} language={lang}/>
+      <BottomNavigation currentView={currentView} onNavigate={(view)=>{setCurrentView(view);setNavigationOpen(false);}} language={lang}/>
 
       {/* Offline Alert Indicator */}
       <OfflineIndicator language={lang} />
