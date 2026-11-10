@@ -38,7 +38,7 @@ export const PWAInstallButton:React.FC<Props>=({language='lo',onOpenGuide})=>{
   ]:isAndroid?[
     lo?'ເປີດລິ້ງແອັບນີ້ໃນ Chrome. ຖ້າເປີດຜ່ານແອັບອື່ນ ໃຫ້ກົດ ⋮ ແລ້ວເລືອກ “Open in Chrome” ຫຼື “Open in browser”.':'Open this app in Chrome. If opened inside another app, tap ⋮ and choose “Open in Chrome” or “Open in browser”.',
     lo?'ໃນ Chrome ກົດເມນູ ⋮ ແລ້ວເລືອກ “Install app” ຫຼື “Add to Home screen”.':'In Chrome, tap ⋮ and choose “Install app” or “Add to Home screen”.',
-    lo?'ກົດ “Install” ຫຼື “Add” ແລ້ວເປີດແອັບຈາກໜ້າຈໍຫຼັກ.':'Tap “Install” or “Add”, then open the app from your home screen.'
+    lo?'ກົດ “Install” ຫຼື “Add” ແລ້ວເປີດຈາກໄອຄອນ MKT Budget ໃນໜ້າຈໍຫຼັກ. Android / Chrome ທີ່ຮອງຮັບຈະເປີດແອັບເຕັມຈໍໂດຍບໍ່ຕ້ອງກົດປຸ່ມເຕັມຈໍ.':'Tap “Install” or “Add”, then launch the MKT Budget icon from your home screen. Supported Android / Chrome installations open fullscreen without an extra button.'
   ]:[
     lo?'ເປີດແອັບນີ້ໃນ Chrome ຫຼື Microsoft Edge.':'Open this app in Chrome or Microsoft Edge.',
     lo?'ກົດໄອຄອນຕິດຕັ້ງທີ່ແຖບທີ່ຢູ່ ຫຼືເປີດເມນູ ⋮ ແລ້ວເລືອກ “Install app”.':'Use the install icon in the address bar, or open ⋮ and choose the app installation option.',

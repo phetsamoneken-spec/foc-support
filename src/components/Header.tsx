@@ -1,6 +1,5 @@
 import {isSupabaseBackend,SUPABASE_DASHBOARD_URL} from '../config/supabase';
 import React, { useState } from 'react';
-import {FullscreenButton} from './FullscreenButton';
 import {EmployeeAvatar} from './EmployeeAvatar';
 import {
   FileSpreadsheet,
@@ -97,7 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Center / Right: Actions & Controls */}
           <div className="gold-header-actions flex items-center gap-2 sm:gap-3">
-            <FullscreenButton language={lang} compact/>
             
             {/* Team Selector: If Admin, allow selecting B1-B7 or ALL. If Team User, lock to assigned team */}
             <div className="hidden sm:flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700">

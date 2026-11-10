@@ -393,9 +393,6 @@ button[aria-busy=true] {cursor:progress!important;}
  .mkt-shell .fixed.inset-0.z-50>div,.mkt-overlay-layer .fixed.inset-0.z-50>div {margin-block:0;max-height:calc(100dvh - max(16px,var(--app-safe-top)) - max(16px,var(--app-safe-bottom)));overflow-y:auto;}
  .pwa-guide-overlay {padding-top:max(16px,var(--app-safe-top));padding-bottom:max(16px,var(--app-safe-bottom));}
 }
-.fullscreen-toggle {display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:44px;padding:10px 12px;border:1px solid #D9BD59;border-radius:12px;background:#FFF4C7;color:#254C29;font-size:12px;font-weight:700;}
-.fullscreen-toggle:disabled {opacity:1!important;cursor:progress;}
-.fullscreen-control>p {margin-top:7px;font-size:11px;line-height:1.7;color:#B32D23;}
 @media screen and (max-width:767px) {
  .mkt-shell .gold-header-row {height:56px;}
  .mkt-shell .gold-header>div {padding-left:max(8px,var(--app-safe-left));padding-right:max(8px,var(--app-safe-right));}
@@ -456,9 +453,6 @@ button[aria-busy=true] {cursor:progress!important;}
 .portrait-crop-controls input[type=range] {width:65%;min-height:44px;accent-color:#087C35;padding:0;border:0;background:transparent;}
 .portrait-error {color:#B02B23;font-size:12px;line-height:1.8;margin-top:8px;}
 .portrait-saved {color:#087C35;font-size:12px;line-height:1.8;margin-top:8px;}
-.fullscreen-control-compact {position:relative;flex-shrink:0;}
-.fullscreen-control-compact .fullscreen-toggle {width:44px;min-width:44px;height:44px;padding:0;background:#FFF5D4;color:#23452C;}
-.fullscreen-control-compact>p {position:absolute;top:48px;right:0;z-index:70;width:240px;padding:12px;border:1px solid #E9BAAE;border-radius:12px;background:#fff;color:#A42B22;box-shadow:0 4px 12px #17201820;}
 .employee-table {min-width:1120px;}
 .employee-table th,.employee-table td {vertical-align:middle;line-height:1.8;}
 .employee-table th {white-space:nowrap;}
@@ -477,7 +471,6 @@ button[aria-busy=true] {cursor:progress!important;}
  .gold-header-actions .gold-profile-trigger {width:44px;min-width:44px;height:44px;padding:5px;justify-content:center;}
  .gold-profile-trigger>svg:last-child {display:none;}
  .gold-header-actions .gold-icon-button {width:40px;min-width:40px;}
- .gold-header-actions .fullscreen-toggle {width:40px;min-width:40px;}
  .gold-greeting {align-items:flex-start;}
  .gold-greeting h2 {font-size:15px;line-height:1.8;}
  .gold-team-select {min-width:70px;max-width:100px;flex-shrink:0;}

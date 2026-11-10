@@ -21,6 +21,7 @@ export default defineConfig(() => {
           theme_color: '#FFC400',
           background_color: '#FFF8E7',
           display: 'fullscreen',
+          display_override: ['fullscreen', 'standalone'],
           start_url: './',
           scope: './',
           icons: [

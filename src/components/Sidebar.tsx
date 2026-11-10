@@ -18,7 +18,6 @@ import {
 import { storage } from '../services/storage';
 import { translations, Language } from '../locales/translations';
 import { BrandLogo } from './BrandLogo';
-import { FullscreenButton } from './FullscreenButton';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface SidebarProps {
@@ -238,7 +237,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer info in sidebar */}
         <div className="shrink-0 space-y-3 p-4 border-t border-slate-800/80 bg-slate-950/40">
-          <FullscreenButton language={lang} onComplete={()=>setNavigationOpen(false)}/>
           <PWAInstallButton language={lang} onOpenGuide={()=>setNavigationOpen(false)} />
           <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>PWA v{APP_VERSION}</span>
