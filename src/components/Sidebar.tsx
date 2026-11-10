@@ -119,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'settings',
       label: t.navSettings,
       icon: Settings,
-      adminOnly: false
+      adminOnly: true
     }
   ];
 

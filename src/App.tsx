@@ -9,7 +9,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { MotionConfig } from 'motion/react';
 import { BottomNavigation } from './components/BottomNavigation';
-import { PersonalSettings } from './components/PersonalSettings';
 import { useGoldAppearance } from './components/GoldAppearance';
 import { useDashboardTheme } from './components/ThemeSwitcher';
 import { storage } from './services/storage';
@@ -53,7 +52,7 @@ export default function App() {
   const backendUrl=storage.getSettings().appsScriptUrl;
   const sharedTheme=storage.getSettings().dashboardTheme;
   useEffect(()=>{if(sharedTheme)setTheme(sharedTheme);},[currentUser?.id,sharedTheme]);
-  useEffect(()=>{if(currentUser?.role!=='ADMIN'&&currentView==='users')setCurrentView('dashboard');},[currentUser?.role,currentView]);
+  useEffect(()=>{if(currentUser?.role!=='ADMIN'&&['users','settings'].includes(currentView))setCurrentView('dashboard');},[currentUser?.role,currentView]);
   useEffect(()=>{
     const refresh=async()=>{
       storage.refreshBudgetCalendar();
@@ -213,7 +212,6 @@ export default function App() {
             <UsersView />
           )}
 
-          {currentView === 'settings' && !isAdmin && <PersonalSettings/>}
           {currentView === 'settings' && isAdmin && (
             <SettingsView
               theme={theme}
@@ -225,7 +223,7 @@ export default function App() {
         </main>
       </div>
 
-      <BottomNavigation currentView={currentView} onNavigate={(view)=>{setCurrentView(view);setNavigationOpen(false);}} language={lang}/>
+      <BottomNavigation isAdmin={isAdmin} currentView={currentView} onNavigate={(view)=>{setCurrentView(view);setNavigationOpen(false);}} language={lang}/>
 
       {/* Offline Alert Indicator */}
       <OfflineIndicator language={lang} />
