@@ -14,6 +14,20 @@ export function remoteSession(endpoint:string):RemoteSession|null {
 // Stable for one login, including automatic native access-token refreshes.
 export function remoteSessionId(endpoint:string){return remoteSession(endpoint)?.sessionId;}
 export function clearRemoteSession(endpoint:string){if(memory?.endpoint===endpoint)memory=null;try{sessionStorage.removeItem(key(endpoint));}catch{}}
+/** Storage uses the same refreshed user session as the existing business API. */
+export async function authenticatedStorageRequest(endpoint:string,path:string,init:RequestInit={}):Promise<Response>{
+ if(!isSupabaseBackend(endpoint)||!path.startsWith('/object/'))throw Error('Photo storage requires a Supabase session.');
+ let session=await refreshed(endpoint);
+ if(!session)throw Error('Session expired. Sign in again.');
+ const loginId=session.sessionId;
+ for(let attempt=0;attempt<2;attempt++){
+  const response=await fetch(SUPABASE_URL+'/storage/v1'+path,{...init,headers:{...Object.fromEntries(new Headers(init.headers)),apikey:SUPABASE_PUBLISHABLE_KEY,Authorization:'Bearer '+session.token},cache:'no-store'});
+  if(remoteSessionId(endpoint)!==loginId)throw Error('Session changed. Sign in again.');
+  if(response.status===401&&attempt===0&&session.refreshToken){session=await refreshed(endpoint,true);if(!session||session.sessionId!==loginId)throw Error('Session changed. Sign in again.');continue;}
+  return response;
+ }
+ throw Error('Session expired. Sign in again.');
+}
 async function refreshed(endpoint:string,force=false):Promise<RemoteSession|null>{
  const current=remoteSession(endpoint);
  if(!current||!isSupabaseBackend(endpoint)||!current.refreshToken||!force&&Date.parse(current.expiresAt)>Date.now()+60000)return current;

@@ -3,7 +3,7 @@ import {Maximize,Minimize} from 'lucide-react';
 import type {Language} from '../locales/translations';
 
 /** Fullscreen is requested only by a user gesture, never while opening the app. */
-export function FullscreenButton({language,onComplete}:{language:Language;onComplete?:()=>void}){
+export function FullscreenButton({language,onComplete,compact=false}:{language:Language;onComplete?:()=>void;compact?:boolean}){
   const [supported,setSupported]=useState(false),[active,setActive]=useState(false),[nativeMode,setNativeMode]=useState(false);
   const [pending,setPending]=useState(false),[error,setError]=useState('');
   const pendingRef=useRef(false);
@@ -15,10 +15,11 @@ export function FullscreenButton({language,onComplete}:{language:Language;onComp
   },[]);
   if(!supported||nativeMode)return null;
   const lo=language==='lo';
-  return <div className="fullscreen-control no-print"><button type="button" className="fullscreen-toggle" aria-pressed={active} aria-busy={pending} disabled={pending} onClick={async()=>{
+  const label=active?(lo?'ອອກຈາກເຕັມຈໍ':'Exit fullscreen'):(lo?'ເຕັມຈໍ':'Full screen');
+  return <div className={`fullscreen-control no-print ${compact?'fullscreen-control-compact':''}`}><button type="button" className="fullscreen-toggle" aria-label={label} title={label} aria-pressed={active} aria-busy={pending} disabled={pending} onClick={async()=>{
     if(pendingRef.current)return;pendingRef.current=true;setPending(true);setError('');
     try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen({navigationUI:'hide'});onComplete?.();}
     catch{setError(lo?'ບໍ່ສາມາດເປີດເຕັມຈໍໄດ້. ລອງເປີດແອັບໃນ Chrome.':'Fullscreen is unavailable here. Try opening the app in Chrome.');}
     finally{pendingRef.current=false;setPending(false);}
-  }}>{active?<Minimize size={17}/>:<Maximize size={17}/>}<span>{active?(lo?'ອອກຈາກເຕັມຈໍ':'Exit fullscreen'):(lo?'ເຕັມຈໍ':'Full screen')}</span></button>{error&&<p role="alert">{error}</p>}</div>;
+  }}>{active?<Minimize size={19}/>:<Maximize size={19}/>}<span className={compact?'sr-only':undefined}>{label}</span></button>{error&&<p role="alert">{error}</p>}</div>;
 }

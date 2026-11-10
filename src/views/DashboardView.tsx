@@ -1,4 +1,5 @@
 import React from 'react';
+import {EmployeeAvatar} from '../components/EmployeeAvatar';
 import { Users, Wallet, TrendingUp, CheckCircle2, Plus, Calendar, FileSpreadsheet, ChartNoAxesCombined, ArrowUpRight, Bell, ChevronRight } from 'lucide-react';
 import { storage } from '../services/storage';
 import { translations, Language } from '../locales/translations';
@@ -19,7 +20,7 @@ export const DashboardView:React.FC<DashboardViewProps>=({selectedTeam,onSelectT
   const visibleTeams=admin?TEAMS:TEAMS.filter(team=>team===user?.team);
   return <div className="gold-dashboard space-y-4">
     <section className="gold-greeting flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3 min-w-0"><span className="gold-avatar" aria-hidden="true">{user?.fullName?.charAt(0)||'M'}</span><div className="min-w-0"><h2 className="font-bold text-base sm:text-xl break-words">{lo?'ສະບາຍດີ, ':'Hello, '}{user?.fullName}</h2><p className="text-xs text-slate-600 mt-1">{lo?'ພາບລວມງົບປະມານ':'Budget overview'} · {admin?'Admin':user?.team}</p></div></div>
+      <div className="flex items-center gap-3 min-w-0"><EmployeeAvatar user={user}/><div className="min-w-0"><h2 className="font-bold text-base sm:text-xl break-words">{lo?'ສະບາຍດີ, ':'Hello, '}{user?.fullName}</h2><p className="text-xs text-slate-600 mt-1">{lo?'ພາບລວມງົບປະມານ':'Budget overview'} · {admin?'Admin':user?.team}</p></div></div>
       {admin&&<select aria-label={lo?'ເລືອກທີມ':'Select team'} className="gold-team-select" value={selectedTeam} onChange={e=>onSelectTeam(e.target.value as Team)}><option value="ALL">{lo?'ທຸກທີມ':'All teams'}</option>{TEAMS.map(team=><option key={team}>{team}</option>)}</select>}
     </section>
     <div className="gold-kpi-grid">

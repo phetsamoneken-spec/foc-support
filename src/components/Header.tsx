@@ -1,7 +1,7 @@
 import {isSupabaseBackend,SUPABASE_DASHBOARD_URL} from '../config/supabase';
 import React, { useState } from 'react';
-import {createPortal} from 'react-dom';
-import {useModalDialog} from '../hooks/useModalDialog';
+import {FullscreenButton} from './FullscreenButton';
+import {EmployeeAvatar} from './EmployeeAvatar';
 import {
   FileSpreadsheet,
   Globe,
@@ -49,7 +49,6 @@ export const Header: React.FC<HeaderProps> = ({
   const alerts=metrics.expiringContracts+metrics.expiredContracts;
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-  const profileDialogRef=useModalDialog(()=>setShowEditProfileModal(false),false,showEditProfileModal);
 
   const toggleLanguage = async () => {
     if(!storage.canManageSettings())return;
@@ -97,7 +96,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Center / Right: Actions & Controls */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="gold-header-actions flex items-center gap-2 sm:gap-3">
+            <FullscreenButton language={lang} compact/>
             
             {/* Team Selector: If Admin, allow selecting B1-B7 or ALL. If Team User, lock to assigned team */}
             <div className="hidden sm:flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700">
@@ -166,13 +166,9 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label={lang==='lo'?'ເມນູໂປຣໄຟລ໌':'Profile menu'}
                 aria-expanded={userMenuOpen}
                 onClick={() => {setUserMenuOpen(!userMenuOpen);setNotificationsOpen(false);}}
-                className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition cursor-pointer"
+                className="gold-profile-trigger flex items-center gap-2 pl-2 pr-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition cursor-pointer"
               >
-                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
-                  isAdmin ? 'bg-amber-500 text-slate-900' : 'bg-blue-600 text-white'
-                }`}>
-                  {isAdmin ? <Shield className="w-3.5 h-3.5" /> : (currentUser?.username?.charAt(0).toUpperCase() || 'U')}
-                </div>
+                <EmployeeAvatar user={currentUser} compact/>
                 <div className="text-left hidden sm:block">
                   <div className="text-xs font-semibold text-white leading-tight">
                     {currentUser?.username}
@@ -227,11 +223,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {showEditProfileModal && createPortal(
-        <div ref={profileDialogRef} role="dialog" aria-modal="true" aria-label={t.profile} className="beerlao-gold mkt-overlay-layer">
-          <EditProfileModal onClose={() => setShowEditProfileModal(false)} />
-        </div>,document.body
-      )}
+      {showEditProfileModal && <EditProfileModal onClose={() => setShowEditProfileModal(false)} />}
     </header>
   );
 };

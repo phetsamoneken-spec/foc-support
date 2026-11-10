@@ -1,5 +1,8 @@
 import {isSupabaseBackend} from '../config/supabase';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import {ModalLayer} from '../components/ModalLayer';
+import {EmployeePortraitEditor} from '../components/EmployeePortraitEditor';
+import {EmployeeAvatar} from '../components/EmployeeAvatar';
 import {
   UserCog,
   Plus,
@@ -64,6 +67,8 @@ export const UsersView: React.FC = () => {
   const [editIsActive, setEditIsActive] = useState(true);
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [adding,setAdding]=useState(false),[portraitBusy,setPortraitBusy]=useState(false);
+  const editFlight=useRef(false),addFlight=useRef(false);
 
   // Notification Banner
   const [alertMessage, setAlertMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -86,7 +91,8 @@ export const UsersView: React.FC = () => {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser || savingEdit) return;
+    if (!editingUser || editFlight.current || portraitBusy) return;
+    editFlight.current=true;
     setEditError(null);
     setSavingEdit(true);
 
@@ -99,7 +105,7 @@ export const UsersView: React.FC = () => {
       email: editEmail.trim(),
       isActive: editIsActive
     });
-    setSavingEdit(false);
+    editFlight.current=false;setSavingEdit(false);
 
     if (res.success) {
       refreshUsers();
@@ -116,6 +122,7 @@ export const UsersView: React.FC = () => {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(addFlight.current)return;addFlight.current=true;setAdding(true);
     setAddError(null);
 
     const res = await storage.addUser({
@@ -127,6 +134,7 @@ export const UsersView: React.FC = () => {
       email: newEmail.trim()
     });
 
+    addFlight.current=false;setAdding(false);
     if (res.success) {
       refreshUsers();
       setShowAddUserModal(false);
@@ -214,7 +222,7 @@ export const UsersView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="employee-view space-y-6">
       {settings.appsScriptUrl && <section className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
         <h3 className="font-bold text-slate-900">User accounts → {isSupabaseBackend(settings.appsScriptUrl)?'Supabase Auth':'Google Sheet USERS'}</h3>
         {isSupabaseBackend(settings.appsScriptUrl)?<p className="text-xs text-slate-600">{lang==='lo'?'ບັນຊີຜູ້ໃຊ້ບັນທຶກໃນ Supabase Auth. Admin ສາມາດເພີ່ມ, ແກ້ໄຂ, ປິດບັນຊີ ແລະກຳນົດທີມໄດ້.':'Accounts are stored in Supabase Auth. Admin can create, edit, disable accounts and assign teams.'}</p>:<p className="text-xs text-slate-600">{lang === 'lo' ? 'ເຂົ້າລະບົບ backend ດ້ວຍ Admin ກ່ອນ. ກົດ Sync Users ເພື່ອຍ້າຍບັນຊີເກົ່າໃນ browser ໄປ Sheet. ຫຼັງຈາກນັ້ນການເພີ່ມ/ແກ້ User ຈະຂຽນລົງ Sheet ໂດຍກົງ.' : 'Sign in as a backend Admin. Sync Users migrates this browser’s accounts to Sheets. Subsequent user changes are written directly to Sheets.'}</p>}
@@ -400,8 +408,8 @@ export const UsersView: React.FC = () => {
 
           {/* Users Table */}
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="employee-table-wrap overflow-x-auto">
+              <table className="employee-table w-full text-left text-xs border-collapse" data-employee-table="true">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
                     <th className="py-3.5 px-4">ຊື່ເຂົ້າໃຊ້ (Username)</th>
@@ -423,8 +431,8 @@ export const UsersView: React.FC = () => {
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/80 transition">
                         {/* Username */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-2">
+                        <td data-label="ຊື່ເຂົ້າໃຊ້" className="py-3.5 px-4">
+                          <div className="employee-identity flex items-center gap-2"><EmployeeAvatar user={u} compact/>
                             <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
                               {u.username}
                             </span>
@@ -432,16 +440,16 @@ export const UsersView: React.FC = () => {
                         </td>
 
                         {/* Full Name */}
-                        <td className="py-3.5 px-4 font-semibold text-slate-900">
+                        <td data-label="ຊື່ພະນັກງານ" className="py-3.5 px-4 font-semibold text-slate-900">
                           {u.fullName}
                         </td>
 
                         {/* Role */}
-                        <td className="py-3.5 px-3">
+                        <td data-label="ບົດບາດ" className="py-3.5 px-3">
                           {isAdmin ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                               <Shield className="w-3 h-3 text-amber-700" />
-                              <span>Admin (ທຸກທີມ)</span>
+                              <span>Admin</span>
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
@@ -452,18 +460,18 @@ export const UsersView: React.FC = () => {
                         </td>
 
                         {/* Team */}
-                        <td className="py-3.5 px-3">
+                        <td data-label="ທີມ" className="py-3.5 px-3">
                           <span className={`px-2.5 py-0.5 rounded-md font-bold text-xs ${
                             u.team === 'ALL'
                               ? 'bg-amber-50 text-amber-900 border border-amber-200'
                               : 'bg-slate-100 text-slate-800 border border-slate-200'
                           }`}>
-                            {u.team === 'ALL' ? 'ທຸກທີມ (B1-B7)' : `ທີມ ${u.team}`}
+                            {u.team === 'ALL' ? 'B1–B7' : `ທີມ ${u.team}`}
                           </span>
                         </td>
 
                         {/* Password */}
-                        <td className="py-3.5 px-4 font-mono">
+                        <td data-label="ລະຫັດຜ່ານ" className="py-3.5 px-4 font-mono">
                           <div className="flex items-center gap-1.5">
                             <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
                               showPasswords ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600'
@@ -485,18 +493,18 @@ export const UsersView: React.FC = () => {
                         </td>
 
                         {/* Email */}
-                        <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
+                        <td data-label="ອີເມວ" className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
                           {u.email || '-'}
                         </td>
 
                         {/* Last Login */}
-                        <td className="py-3.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
+                        <td data-label="ເຂົ້າລະບົບລ່າສຸດ" className="py-3.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
                           {u.lastLogin || '-'}
                           {u.updatedAt&&<span className="block text-[10px] text-slate-500">{lang==='lo'?'ແກ້ໄຂ:':'Edited:'} {new Date(u.updatedAt).toLocaleString(lang==='lo'?'lo-LA':'en-GB',{timeZone:'Asia/Bangkok'})}</span>}
                         </td>
 
                         {/* Status */}
-                        <td className="py-3.5 px-3 text-center">
+                        <td data-label="ສະຖານະ" className="py-3.5 px-3 text-center">
                           {u.isActive ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -511,7 +519,7 @@ export const UsersView: React.FC = () => {
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
+                        <td data-label="ຈັດການ" className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Edit Button */}
                             <button
@@ -619,7 +627,7 @@ export const UsersView: React.FC = () => {
 
       {/* EDIT USER MODAL */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
+        <ModalLayer label="ແກ້ໄຂຂໍ້ມູນພະນັກງານ" locked={savingEdit||portraitBusy} onClose={()=>setEditingUser(null)}>
           <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95">
             <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-blue-950 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -634,6 +642,7 @@ export const UsersView: React.FC = () => {
                 </div>
               </div>
               <button
+                disabled={savingEdit||portraitBusy}
                 onClick={() => setEditingUser(null)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
@@ -642,6 +651,7 @@ export const UsersView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <EmployeePortraitEditor user={editingUser} onBusyChange={setPortraitBusy}/>
               {editError && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -677,7 +687,7 @@ export const UsersView: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  ລະຫັດຜ່ານໃໝ່ (Password) <span className="text-rose-500">*</span>
+                  ລະຫັດຜ່ານໃໝ່ (Password)
                 </label>
                 <input
                   type="password"
@@ -757,14 +767,15 @@ export const UsersView: React.FC = () => {
               <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setEditingUser(null)}
+                  disabled={savingEdit||portraitBusy}
+                onClick={() => setEditingUser(null)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
                   ຍົກເລີກ
                 </button>
                 <button
                   type="submit"
-                  disabled={savingEdit}
+                  disabled={savingEdit||portraitBusy}
                   className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition cursor-pointer shadow-md shadow-blue-600/20 active:scale-95"
                 >
                   {savingEdit ? 'ກຳລັງບັນທຶກ…' : 'ບັນທຶກການແກ້ໄຂ'}
@@ -772,12 +783,12 @@ export const UsersView: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* ADD USER MODAL */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
+        <ModalLayer label="ເພີ່ມພະນັກງານ" locked={adding} onClose={()=>setShowAddUserModal(false)}>
           <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95">
             <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-blue-950 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -790,6 +801,7 @@ export const UsersView: React.FC = () => {
                 </div>
               </div>
               <button
+                disabled={adding}
                 onClick={() => setShowAddUserModal(false)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
               >
@@ -901,21 +913,23 @@ export const UsersView: React.FC = () => {
               <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAddUserModal(false)}
+                  disabled={adding}
+                onClick={() => setShowAddUserModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
                   ຍົກເລີກ
                 </button>
                 <button
                   type="submit"
+                  disabled={adding}
                   className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition cursor-pointer shadow-md shadow-blue-600/20 active:scale-95"
                 >
-                  ເພີ່ມຜູ້ໃຊ້ງານ
+                  {adding?'ກຳລັງບັນທຶກ…':'ເພີ່ມຜູ້ໃຊ້ງານ'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
     </div>

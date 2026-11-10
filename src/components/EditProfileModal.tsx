@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import {ModalLayer} from './ModalLayer';
+import {EmployeePortraitEditor} from './EmployeePortraitEditor';
 import { X, User, Lock, Mail, CheckCircle2, Shield, AlertCircle } from 'lucide-react';
 import { storage } from '../services/storage';
 import { User as UserType } from '../types';
@@ -16,11 +18,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
   const [email, setEmail] = useState(currentUser?.email || '');
   const [error, setError] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saving,setSaving]=useState(false),[portraitBusy,setPortraitBusy]=useState(false);
+  const flight=useRef(false);
 
   if (!currentUser) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(flight.current||portraitBusy)return;
     setError(null);
 
     if (!username.trim()) {
@@ -32,6 +37,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
       return;
     }
 
+    flight.current=true;setSaving(true);
     const res = await storage.updateOwnProfile({
       fullName: fullName.trim(),
       username: username.trim(),
@@ -39,6 +45,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
       email: email.trim() || undefined
     });
 
+    flight.current=false;setSaving(false);
     if (res.success) {
       setSavedSuccess(true);
       setTimeout(() => {
@@ -51,7 +58,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+    <ModalLayer label="ແກ້ໄຂໂປຣໄຟລ໌" locked={saving||portraitBusy||savedSuccess} onClose={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95">
         
         {/* Header */}
@@ -68,6 +75,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
             </div>
           </div>
           <button
+            disabled={saving||portraitBusy||savedSuccess}
             onClick={onClose}
             className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
@@ -77,6 +85,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <EmployeePortraitEditor user={currentUser} onBusyChange={setPortraitBusy}/>
           {error && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -152,22 +161,23 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose, onS
           <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
             <button
               type="button"
-              onClick={onClose}
+              disabled={saving||portraitBusy||savedSuccess}
+            onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
               ຍົກເລີກ
             </button>
             <button
               type="submit"
-              disabled={savedSuccess}
+              disabled={savedSuccess||saving||portraitBusy}
               className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition cursor-pointer shadow-md shadow-blue-600/20 active:scale-95 disabled:opacity-50"
             >
-              ບັນທຶກການແກ້ໄຂ
+              {saving?'ກຳລັງບັນທຶກ…':'ບັນທຶກການແກ້ໄຂ'}
             </button>
           </div>
         </form>
 
       </div>
-    </div>
+    </ModalLayer>
   );
 };
