@@ -15,6 +15,9 @@ const {INITIAL_SETTINGS}=await import('../src/data/seedData');
 const endpoint='https://script.google.com/macros/s/incremental-fixture/exec';INITIAL_SETTINGS.appsScriptUrl=endpoint;
 const {storage}=await import('../src/services/storage');
 const {GasService}=await import('../src/services/gasService');
+const {subscribeToSaveSuccess}=await import('../src/services/saveNotifications');
+const notifications:{actorId:string}[]=[];
+subscribeToSaveSuccess(event=>notifications.push(event));
 let legacyDeletion=false;
 let loseNext=false,holdNext=false,release:(()=>void)|undefined;const calls:any[]=[];
 globalThis.fetch=async(url,init)=>{
@@ -27,8 +30,10 @@ globalThis.fetch=async(url,init)=>{
 };
 assert.equal((await storage.login('admin','Test-only-password-42!')).success,true);
 assert.equal((await storage.loadBusinessFromSheets()).success,true);
+assert.equal(notifications.length,0,'login and background reads never announce a successful save');
 const store={code:'AUTO1',name:'Automatic store',team:'B1',conditionQty:1,conditionUOM:'CAS',conditionProductDescription:'Product',commencingOn:'2026-01-01',expiringOn:'2028-12-31',annualBudget:1000};
 loseNext=true;const first=await storage.commitBusinessChange('ADD_CUSTOMER',store);assert.equal(first.success,false);
+assert.equal(notifications.length,0,'a lost acknowledgement must not show a success popup');
 assert.equal(storage.getCustomerByCode('AUTO1'),undefined,'failed acknowledgement must not show a local success');
 assert.equal(server.sheets.get('CUSTOMERS').rows.length,2,'the real mock Sheet saved before the response was lost');
 assert.equal(storage.getBusinessWriteState().pending,true);const operation=storage.getPendingBusinessWrite()!.id;
@@ -37,6 +42,7 @@ assert.equal((await GasService.syncAllToGoogleSheets()).success,false,'bulk publ
 assert.equal((await storage.loadBusinessFromSheets(true)).success,false,'even explicit replacement protects a pending write');
 storage.init();assert.equal(storage.getPendingBusinessWrite()!.id,operation,'operation ID survives Reload');
 assert.equal((await storage.retryPendingBusinessWrite()).success,true);
+assert.equal(notifications.length,1,'a validated save acknowledgement announces success once');
 assert.equal(storage.getCustomerByCode('AUTO1')!.name,store.name);assert.equal(server.sheets.get('CUSTOMERS').rows.length,2,'retry cannot duplicate the store');assert.equal(storage.getPendingBusinessWrite(),null);assert.equal(storage.hasUnsyncedBusinessData(),false);
 // Another browser changes a different team while this cache is stale.
 const {remoteSession}=await import('../src/services/remoteAccounts');
@@ -54,9 +60,12 @@ assert.equal((await storage.commitBusinessChange('ADD_CUSTOMER',store)).success,
 assert.equal((await storage.commitBusinessChange('REPRICE',{price:250000,recalculate:true})).success,true);assert.equal(storage.getSettings().pricePerCrate,250000);assert.equal(storage.getBudgetForCustomer('AUTO1')!.annualAmount,250000);
 assert.equal((await storage.addUser({username:'writer',fullName:'Team Writer',role:'TEAM_USER',team:'B1',password:'Writer-test-42!'})).success,true);
 // A response delivered after switching accounts cannot merge another user's data.
+const beforeHeldSave=notifications.length;
 holdNext=true;const waiting=storage.commitBusinessChange('ADD_CUSTOMER',{...store,code:'HELD'});
 for(let n=0;n<50&&!release;n++)await new Promise(resolve=>setTimeout(resolve,1));assert.ok(release);
+assert.equal(notifications.length,beforeHeldSave,'a pending request does not announce success');
 assert.equal((await storage.login('writer','Writer-test-42!')).success,true);release!();assert.equal((await waiting).success,false);assert.equal(storage.getCustomerByCode('HELD'),undefined);
+assert.equal(notifications.length,beforeHeldSave,'an acknowledgement from a previous account cannot announce success');
 assert.equal((await storage.loadBusinessFromSheets()).success,true);
 assert.equal((await storage.commitBusinessChange('ADD_CUSTOMER',{...store,code:'WRONG',team:'B2'})).success,false);assert.equal(storage.getPendingBusinessWrite(),null);
 legacyDeletion=true;assert.equal((await storage.loadBusinessFromSheets()).success,true);const deletesBefore=calls.filter(c=>c.action==='MUTATE_BUSINESS').length;

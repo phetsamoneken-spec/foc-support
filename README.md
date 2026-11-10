@@ -2,7 +2,7 @@
 
 FOC Support React/Vite application with customers, annual contract budgets, expenses, reports, user management and shared Supabase storage.
 
-Source version: **2026.11.03.1**. Adds a Supabase backend with native Auth, normalized PostgreSQL tables, team permissions, atomic writes, revision conflict handling and retained operation receipts. Customer deletions archive data before removing the working rows. Excel imports and shared settings remain Admin-only. Annual allowances follow each contract’s commencement anniversary. Open devices refresh every 15 seconds. The previous Google Sheet is retained as the pre-migration backup; new Supabase writes do not mirror back to it.
+Source version: **2026.11.10.1**. Shows a dismissible success popup for four seconds after an acknowledged store, expense, contract, budget, account, shared-settings or Excel save. Pending, failed and background-read requests do not display save success. Uses a Supabase backend with native Auth, normalized PostgreSQL tables, team permissions, atomic writes, revision conflict handling and retained operation receipts. Customer deletions archive data before removing the working rows. Excel imports and shared settings remain Admin-only. Annual allowances follow each contract’s commencement anniversary. Open devices refresh every 15 seconds. The previous Google Sheet is retained as the pre-migration backup; new Supabase writes do not mirror back to it.
 
 See [Supabase setup and validation](supabase/README.md). The production endpoint is deployment-controlled; the browser contains only the public project URL and publishable API key. Privileged keys and imported credentials remain server-side. Legacy Apps Script support remains available for local development and rollback.
 

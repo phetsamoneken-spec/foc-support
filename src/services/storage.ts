@@ -1,4 +1,5 @@
 import {makeBrowserRecovery,type BrowserRecovery} from './legacyRecovery';
+import {announceSaveSuccess} from './saveNotifications';
 import {businessWriteKey,newBusinessWriteId,type PendingBusinessWrite,type BusinessWriteKind,type BusinessWriteResult,type BusinessWriteState} from './businessWrites';
 import {businessToday, isCalendarDate, projectAnnualBudgets, selectAnnualBudget, refreshBudgetTotals} from './annualBudgets';
 import { accountRequest, clearRemoteSession, remoteSession, remoteSessionId, type AccountResponse } from './remoteAccounts';
@@ -273,6 +274,7 @@ class StorageService {
         if(pending.kind==='REPRICE'){this.settings.pricePerCrate=Number(pending.data.price);safeSetItem(STORAGE_KEYS.SETTINGS,JSON.stringify(this.settings));}
         safeRemoveItem(key);if(pending.previousEndpoint)safeRemoveItem(businessWriteKey(actor.id,pending.previousEndpoint));if(wasClean)this.markBusinessSynced(endpoint,this.businessSnapshot(),result.businessRevision);
         this.writeFeedback={key,status:'saved',message:'ບັນທຶກໄປ Google Sheet ສຳເລັດ (Saved to Google Sheet)'};this.notify();
+        announceSaveSuccess(actor.id);
         return {success:true,message:result.message||'Saved to Google Sheet',entityId:result.entityId};
       }catch(error){const message=error instanceof Error?error.message:String(error);this.writeFeedback={key,status:'error',message};this.notify();return {success:false,message};}
     };
@@ -593,6 +595,7 @@ class StorageService {
   }
   public hasRemoteUserSession() { return !!remoteSession(this.settings.appsScriptUrl); }
   private async remoteAccount(action: string, payload: Record<string, unknown> = {}, migratedLocalId?: string) {
+    const actorId=this.currentUser?.id;
     const result = await accountRequest(this.settings.appsScriptUrl,action,payload);
     if (result.success) {
       if (migratedLocalId) this.users = this.users.filter(user => user.id !== migratedLocalId);
@@ -615,6 +618,7 @@ class StorageService {
       }
       if (result.user) this.setCurrentUser(result.user);
       this.notify();
+      if(actorId&&['ADD_USER','UPDATE_USER','RESET_USER_PASSWORD','DELETE_USER','UPDATE_PROFILE','SYNC_USERS'].includes(action))announceSaveSuccess(actorId);
     }
     return {success:result.success,message:result.message || (result.success ? 'Saved to Sheet USERS' : 'Account operation failed')};
   }

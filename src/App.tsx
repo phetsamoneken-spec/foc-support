@@ -18,6 +18,7 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { SheetDataNotice } from './components/SheetDataNotice';
+import { SaveSuccessToast } from './components/SaveSuccessToast';
 
 // Views
 import { LoginView } from './views/LoginView';
@@ -116,6 +117,7 @@ export default function App() {
 
   return (
     <div className={`mkt-shell theme-${isAdmin?theme:(sharedTheme||'glass')} min-h-screen flex flex-col font-sans`}>
+      <SaveSuccessToast userId={currentUser.id} language={lang} />
       
       {/* Global Header */}
       <Header

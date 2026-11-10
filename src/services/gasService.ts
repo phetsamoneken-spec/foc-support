@@ -5,6 +5,7 @@
  */
 
 import { storage } from './storage';
+import {announceSaveSuccess} from './saveNotifications';
 import { accountRequest,remoteSessionId } from './remoteAccounts';
 import {isSupabaseBackend,isBackendEndpoint,SUPABASE_PUBLISHABLE_KEY} from '../config/supabase';
 import {publishWithLockRetry,type SheetPublishSource} from './sheetPublish';
@@ -22,10 +23,11 @@ export interface GasResponse<T = unknown> {
 export class GasService {
   public static async saveSharedSettings():Promise<{success:boolean;message:string}>{
     if(!storage.canManageSettings())return {success:false,message:'Admin permission required'};
+    const actorId=storage.getCurrentUser()!.id;
     const settings={...storage.getSettings()};
     const result=await this.sendToGas('SAVE_SHARED_SETTINGS',{settings});
     if(result.success && (result as {settingsVersion?:number}).settingsVersion!==1)return {success:false,message:'Update Code.gs and deploy a new Web App version to publish Admin settings.'};
-    if(result.success)storage.markSharedSettingsPublished(settings);
+    if(result.success){storage.markSharedSettingsPublished(settings);announceSaveSuccess(actorId);}
     return {success:result.success===true,message:result.message||result.error||(result.success?'Admin settings saved to the shared Sheet.':'Settings were not published to the shared Sheet.')};
   }
   /**
@@ -136,6 +138,7 @@ export class GasService {
         storage.markBusinessSynced(endpoint,pending.payload as unknown as import('./businessData').BusinessSnapshot,res.businessRevision);
         storage.markSharedSettingsPublished(pending.payload.settings);
         storage.completeSheetPublish(endpoint,pending.id);
+        announceSaveSuccess(actor.id);
       }else storage.setSheetPublishMessage(message);
       return {success:res.success===true,message};
     }catch(error){const message=error instanceof Error?error.message:String(error);storage.setSheetPublishMessage(message);return {success:false,message};}
